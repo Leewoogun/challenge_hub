@@ -1,38 +1,131 @@
 {
-  "_comment": "challenge 프로젝트 레포 경로 레지스트리. 모든 에이전트가 작업 시작 전 이 파일을 읽는다. path가 비어 있으면 해당 영역 작업을 차단하고 사용자에게 경로 요청.",
+  "_comment": "challenge 프로젝트 레포 레지스트리. 모든 에이전트가 작업 시작 전 이 파일을 읽어 경로·스택·주의사항을 확인한다.",
+  "product": {
+    "name_ko": "맹세",
+    "name_en": "MAENGSE",
+    "slogan": "말만 하지 말고, 걸어.",
+    "concept": "친구와의 1:1 약속에 책임감을 부여하는 챌린지 앱. 영혼의 맹세(계약서)까지 작성해야 시작되는 진짜 약속.",
+    "target": "20~30대 친구 그룹, 습관 형성 실패를 반복하는 사람",
+    "core_flow": "카카오 로그인 → 친구 등록 → 1:1 챌린지 신청 → 영혼의 맹세(STT+서명) → 양측 인증(카메라) → 자정 판정 → 결과",
+    "api_prefix": "/api/v1/",
+    "notion": {
+      "parent": "https://www.notion.so/3443902cbe24808bade7ce08c9cbc8d3",
+      "planning": "https://www.notion.so/3443902cbe2480ab8f9dc21aea474de8",
+      "server_spec": "https://www.notion.so/3443902cbe2480d5ab69c1496dc65f84",
+      "mobile_spec": "https://www.notion.so/34b3902cbe24819eb6afc0244db4edb6",
+      "design_spec": "https://www.notion.so/34b3902cbe2481278363f7c37c17cac6",
+      "pm_review": "https://www.notion.so/34b3902cbe2481b297ccd1c0a6f264d5"
+    },
+    "core_entities": [
+      "users (kakao_id, phone_number hash, fcm_token)",
+      "friendships (requester, receiver, status)",
+      "challenges (challenger, opponent, missions, bet, deadline, status, result)",
+      "contracts (challenge 1:1, signatures, is_finalized)",
+      "verifications (photo_url, verified_at)",
+      "taunt_messages, notifications, user_stats, friend_records"
+    ],
+    "challenge_states": ["PENDING", "ACCEPTED", "REJECTED", "CONTRACT_SIGNING", "IN_PROGRESS", "COMPLETED", "EXPIRED"],
+    "challenge_results": ["CHALLENGER_WIN", "OPPONENT_WIN", "DRAW", "BOTH_LOSE"]
+  },
   "pm": {
     "path": "/Users/hwamulman/woogunProject/challenge/challenge-pm/challenge_hub",
-    "role": "PM 허브 — 스펙, 태스크, 문서, 진행 기록",
+    "role": "PM 허브 — 스펙, API 계약, 구현 보고, 결정 기록(ADR)",
     "branch": "main"
   },
   "mobile": {
     "path": "/Users/hwamulman/woogunProject/challenge/challenge-app",
-    "role": "모바일 앱 (Compose Multiplatform)",
+    "role": "모바일 앱 (Kotlin Multiplatform + Compose Multiplatform, Android+iOS)",
     "branch": "main",
     "tech": {
-      "framework": "Compose Multiplatform",
-      "language": "Kotlin",
+      "kotlin": "2.2.20",
+      "compose_multiplatform": "1.10.3",
       "targets": ["android", "ios"],
-      "http_client": "Ktor"
+      "di": "Koin (KSP annotations: @KoinViewModel, @Single, @Module, @ComponentScan)",
+      "http": "Ktor 3.3.1 + Ktorfit 2.7.2 (KSP generated)",
+      "serialization": "kotlinx.serialization (JSON)",
+      "navigation": "Navigation 3 alpha (NavDisplay + mutableStateListOf<Route>)",
+      "test": "kotlin.test (현재 스켈레톤 수준)",
+      "build": "Gradle Kotlin DSL + 커스텀 build-logic 플러그인"
     },
-    "notes": "작업 전 레포의 기존 컨벤션(패키지 구조, DI, 네이밍)을 스캔한 뒤 맞춘다."
+    "modules": [
+      ":composeApp",
+      ":core:designsystem", ":core:utils", ":core:navigation",
+      ":domain:model", ":domain:repository", ":domain:usecase",
+      ":data:repositoryImpl",
+      ":remote:network", ":remote:api", ":remote:model", ":remote:mapper",
+      ":feature:main", ":feature:home", ":feature:ex1", ":feature:ex2", ":feature:ex3"
+    ],
+    "own_harness": {
+      "claude_dir": "/Users/hwamulman/woogunProject/challenge/challenge-app/.claude",
+      "skills": ["full-feature", "feature", "domain", "data-remote", "data-local", "viewmodel", "navigation", "figma-ui", "bugfix", "modify-feature", "test-usecase", "test-viewmodel", "design-system"],
+      "agents": ["qa-integration", "review-viewmodel", "figma-analyzer", "api-analyzer", "data-remote-builder", "data-local-builder"],
+      "note": "mobile-dev 에이전트는 직접 파일을 작성하기 전에 반드시 이 레포의 .claude/skills/를 읽고 해당 절차를 따른다. CLAUDE.md의 Skill 매핑 테이블이 1차 참조."
+    },
+    "blockers": [
+      "⚠️ 템플릿 미초기화: 패키지 com.lwg.base / 프로젝트명 CmpSystem. docs/decisions/0003 참조.",
+      "⚠️ CLAUDE.md의 모듈 구조가 README와 불일치 — README 기준으로 정정 필요.",
+      "⚠️ 기본 API base URL이 TMDB — 서버 URL로 교체 필요.",
+      "⚠️ :feature:ex1/ex2/ex3 예제 모듈 유지 여부 결정 필요."
+    ]
   },
   "backend": {
     "path": "/Users/hwamulman/woogunProject/challenge/challenge-server",
-    "role": "백엔드 API (Spring)",
+    "role": "백엔드 API (Spring Boot)",
     "branch": "main",
     "tech": {
-      "framework": "Spring Boot",
-      "language": "Kotlin",
-      "build": "Gradle",
-      "persistence": "JPA/Hibernate"
+      "spring_boot": "3.5.0",
+      "kotlin": "2.0.21 (-Xjsr305=strict)",
+      "java_target": "17",
+      "db": "PostgreSQL @ localhost:5432/challenge",
+      "cache": "Redis @ localhost:6379",
+      "orm": "JPA/Hibernate (ddl-auto=validate, open-in-view=false)",
+      "query": "QueryDSL 5.1",
+      "auth": "Spring Security + JWT (JJWT 0.12.6)",
+      "api_docs": "SpringDoc OpenAPI 2.8.6",
+      "websocket": "Spring WebSocket (dependency only, usage TBD)",
+      "package": "com.lwg.challenge",
+      "port": 8080,
+      "test": "JUnit 5 + Spring Security Test",
+      "build": "Gradle Kotlin DSL + build-logic 컨벤션 플러그인"
     },
-    "notes": "작업 전 레포의 기존 컨벤션(패키지 구조, 계층 분리, 에러 바디 포맷)을 스캔한 뒤 맞춘다."
+    "modules": [":app", ":api", ":core", ":domain", ":infra", ":batch"],
+    "kotlin_plugins": {
+      "kotlin-spring": "@Service/@Configuration 자동 open 처리",
+      "kotlin-jpa": "@Entity/@MappedSuperclass/@Embeddable에 no-arg 생성자 자동 생성"
+    },
+    "blockers": [
+      "⚠️ 완전 스켈레톤: ChallengeServerApplication.kt와 smoke test 1개만 존재. 컨트롤러/서비스/도메인 전무.",
+      "⚠️ 첫 기능 전 기반 인프라 필요: SecurityFilterChain, JWT 필터, GlobalExceptionHandler, 표준 에러 DTO, OpenAPI config, CORS. docs/decisions/0002 참조.",
+      "⚠️ 마이그레이션 도구 미결정: ddl-auto=validate인데 Flyway/Liquibase 없음. docs/decisions/0001 참조.",
+      "⚠️ Redis 용도 미정: dependency만 있음."
+    ]
   },
   "design": {
     "source": "lovable",
     "project_url": "",
-    "export_dir": "/Users/hwamulman/woogunProject/challenge/challenge-design",
-    "notes": "Lovable 산출물을 로컬로 내려받는 디렉토리. project_url도 추후 기입하면 design-bridge가 URL도 함께 참조한다."
+    "export_dir": "/Users/hwamulman/woogunProject/challenge/challenge-design/oathbound-challenges",
+    "tech": {
+      "stack": "TanStack Start + React 19 + Vite + Tailwind v4",
+      "ui_kit": "shadcn/ui (Radix UI primitives)",
+      "routing": "TanStack Router (파일 기반 src/routes/)",
+      "theme": "Dark-first (oklch 기반), Pretendard 폰트",
+      "validation": "react-hook-form + Zod",
+      "deploy": "Cloudflare (wrangler.jsonc 존재)"
+    },
+    "tokens_source": "src/styles.css (Tailwind v4 @theme inline, CSS 변수)",
+    "components_source": "src/components/ (shadcn 래핑)",
+    "known_routes": [
+      "index.tsx (홈)",
+      "login.tsx (로그인)",
+      "challenge-new.tsx (챌린지 생성)",
+      "challenge-detail.tsx (챌린지 상세)",
+      "friends.tsx (친구)",
+      "mypage.tsx (마이페이지)",
+      "notifications.tsx (알림)",
+      "ranking.tsx (랭킹)"
+    ],
+    "blockers": [
+      "⚠️ Lovable 산출물이 단순 mockup이 아닌 완전한 React 웹 앱 — 웹 프런트엔드로도 운영할지 결정 필요. docs/decisions/0004 참조."
+    ]
   }
 }

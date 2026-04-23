@@ -108,10 +108,19 @@ mobile-dev와 backend-dev가 합의하는 API 계약의 표준 포맷. `docs/fea
 
 - **시간 포맷은 ISO-8601 UTC 고정.** 서버가 KST 등 로컬 타임존으로 보내지 않는다.
 - **nullable 여부를 반드시 명시.** "없을 수 있음"을 적지 않으면 양쪽이 다르게 가정한다.
-- **에러 바디 shape은 전 엔드포인트 공통.** 모바일이 한 번만 파싱하면 되게.
-- **페이지네이션 방식을 섞지 않는다.** 프로젝트 내 cursor 또는 offset 중 하나로 통일.
+- **에러 바디 shape은 전 엔드포인트 공통**: `{code: string, message: string, details: object}`. 백엔드 `GlobalExceptionHandler`(ADR-0002)에서 이 형식만 반환.
+- **페이지네이션 방식을 섞지 않는다.** 프로젝트 내 cursor 또는 offset 중 하나로 통일. 결정은 첫 목록 엔드포인트 계약 시점에 확정하고 이후 고정.
 - **ID 타입(UUID vs Long vs String)을 초기 계약에서 확정.** 중간 변경 비용이 크다.
 - **버전 관리:** breaking change는 `/api/v2/...` 새 경로로. 기존 엔드포인트 응답 shape의 의미 변경 금지.
+
+## 프로젝트 스택 특이 사항
+
+- **백엔드 source of truth: SpringDoc OpenAPI**. `challenge-server`는 SpringDoc 2.8.6이 설치되어 있어, 컨트롤러·DTO에 붙인 Swagger 어노테이션이 자동으로 OpenAPI spec(JSON)을 생성한다. 이 spec이 배포된 후에는 api-contract.md를 수동 동기화보다 spec 링크와 해시로 참조하는 편이 안전.
+- **백엔드 DTO**: `:api` 모듈에 Kotlin `data class`. 필드명은 camelCase, JSON도 camelCase(기본). 의도적으로 snake_case가 필요하면 `@JsonProperty`로 명시.
+- **모바일 DTO**: `:remote:model`에 `@Serializable data class`. kotlinx.serialization이 JSON ↔ Kotlin 자동 매핑. 서버가 camelCase이면 별도 전략 불필요.
+- **모바일 API 인터페이스**: `:remote:api`에 Ktorfit `@GET`/`@POST` 인터페이스. 서버 path와 1:1 매핑.
+- **enum 값**: 양쪽 다 대문자 `UPPER_SNAKE_CASE` 문자열로 통일(서버의 Jackson 기본, 모바일의 kotlinx.serialization 관습).
+- **빈 응답**: 204 No Content 대신 빈 객체 `{}` 또는 `null` 반환 원칙 결정 — 첫 엔드포인트에서 확정.
 
 ## 상충 해결
 
