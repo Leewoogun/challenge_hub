@@ -1,0 +1,38 @@
+{
+  "_comment": "challenge 프로젝트 레포 경로 레지스트리. 모든 에이전트가 작업 시작 전 이 파일을 읽는다. path가 비어 있으면 해당 영역 작업을 차단하고 사용자에게 경로 요청.",
+  "pm": {
+    "path": "/Users/hwamulman/woogunProject/challenge/challenge-pm/challenge_hub",
+    "role": "PM 허브 — 스펙, 태스크, 문서, 진행 기록",
+    "branch": "main"
+  },
+  "mobile": {
+    "path": "/Users/hwamulman/woogunProject/challenge/challenge-app",
+    "role": "모바일 앱 (Compose Multiplatform)",
+    "branch": "main",
+    "tech": {
+      "framework": "Compose Multiplatform",
+      "language": "Kotlin",
+      "targets": ["android", "ios"],
+      "http_client": "Ktor"
+    },
+    "notes": "작업 전 레포의 기존 컨벤션(패키지 구조, DI, 네이밍)을 스캔한 뒤 맞춘다."
+  },
+  "backend": {
+    "path": "/Users/hwamulman/woogunProject/challenge/challenge-server",
+    "role": "백엔드 API (Spring)",
+    "branch": "main",
+    "tech": {
+      "framework": "Spring Boot",
+      "language": "Kotlin",
+      "build": "Gradle",
+      "persistence": "JPA/Hibernate"
+    },
+    "notes": "작업 전 레포의 기존 컨벤션(패키지 구조, 계층 분리, 에러 바디 포맷)을 스캔한 뒤 맞춘다."
+  },
+  "design": {
+    "source": "lovable",
+    "project_url": "",
+    "export_dir": "/Users/hwamulman/woogunProject/challenge/challenge-design",
+    "notes": "Lovable 산출물을 로컬로 내려받는 디렉토리. project_url도 추후 기입하면 design-bridge가 URL도 함께 참조한다."
+  }
+}
