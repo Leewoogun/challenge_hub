@@ -1,22 +1,24 @@
 # ADR-0003: 모바일 레포 템플릿 초기화
 
-- **상태**: pending
+- **상태**: in-progress (2/6 완료)
 - **생성**: 2026-04-23
+- **진행 업데이트**: 2026-04-23 — 패키지명·프로젝트명 리네임 적용됨 (사용자 직접 실행)
 - **영향 범위**: 모든 모바일 작업의 선행 조건
 
 ## 맥락
 
 `challenge-app`은 `CmpSystem` (Compose Multiplatform System) 템플릿의 복제본으로, challenge 프로젝트용으로 초기화되지 않았다:
 
-| 항목 | 현재 값 | 원하는 값 |
-|------|--------|----------|
-| 패키지 루트 | `com.lwg.base` | `com.lwg.challenge` |
-| 프로젝트명 (settings.gradle.kts) | `CmpSystem` | `ChallengeApp` (또는 `Challenge`) |
-| API base URL | TMDB (`https://api.themoviedb.org/3/`) | challenge 서버 URL |
-| buildkonfig API 토큰 | TMDB 토큰 | challenge 서버 인증 토큰 |
-| 예제 feature 모듈 | `:feature:ex1`, `ex2`, `ex3`, `:feature:home` (Movie 예제) | 유지 여부 결정 |
-| 디자인 시스템 | 기본 Color/Typography (`ChallengeColorScheme` 하드코딩 오렌지/브라운) | Lovable 토큰 반영 |
-| CLAUDE.md 모듈 구조 | `:core:domain/network/data` | `:domain:*`, `:remote:*`, `:data:*` (README와 일치시킴) |
+| 항목 | 현재 값 | 원하는 값 | 상태 |
+|------|--------|----------|------|
+| 패키지 루트 | ~~`com.lwg.base`~~ → `com.lwg.challenge` | `com.lwg.challenge` | ✅ 2026-04-23 완료 |
+| 프로젝트명 (settings.gradle.kts) | ~~`CmpSystem`~~ → `Challenge` | `Challenge` | ✅ 2026-04-23 완료 |
+| API base URL | TMDB (`https://api.themoviedb.org/3/`) | challenge 서버 URL | ⏳ ADR-0007 결정 후 |
+| buildkonfig API 토큰 | `tmdb_token` (local.properties) | challenge 서버 인증 토큰 | ⏳ ADR-0007 결정 후 |
+| 예제 feature 모듈 | `:feature:ex1`, `ex2`, `ex3` | 제거 | ⏳ 즉시 가능 |
+| `:feature:home` | Movie 예제 (HomeViewModel/HomeScreen/HomeTopBar 등) | challenge 홈으로 교체 | ⏳ Sprint 1~2 |
+| 디자인 시스템 | 기본 Color/Typography (`ChallengeColorScheme` 하드코딩) | Lovable 토큰 반영 | ⏳ 디자인 스프린트 |
+| CLAUDE.md 모듈 구조 | `:core:domain/network/data` (잘못 기술) | `:domain:*`, `:remote:*`, `:data:*` (실제 구조) | ⏳ 즉시 가능 |
 
 ## 실행 순서
 

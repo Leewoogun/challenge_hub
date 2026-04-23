@@ -65,10 +65,11 @@
       "note": "mobile-dev 에이전트는 직접 파일을 작성하기 전에 반드시 이 레포의 .claude/skills/를 읽고 해당 절차를 따른다. CLAUDE.md의 Skill 매핑 테이블이 1차 참조."
     },
     "blockers": [
-      "⚠️ 템플릿 미초기화: 패키지 com.lwg.base / 프로젝트명 CmpSystem. docs/decisions/0003 참조.",
-      "⚠️ CLAUDE.md의 모듈 구조가 README와 불일치 — README 기준으로 정정 필요.",
-      "⚠️ 기본 API base URL이 TMDB — 서버 URL로 교체 필요.",
-      "⚠️ :feature:ex1/ex2/ex3 예제 모듈 유지 여부 결정 필요."
+      "✅ 2026-04-23 완료: 패키지 com.lwg.challenge, 프로젝트명 Challenge로 리네임 적용됨.",
+      "⚠️ 기본 API base URL이 TMDB — challenge 서버 URL로 교체 필요 (remote/network/build.gradle.kts + local.properties의 tmdb_token). ADR-0007 환경 분리 결정과 연계.",
+      "⚠️ :feature:ex1/ex2/ex3 예제 모듈 유지 여부 결정 필요 (제거 권장).",
+      "⚠️ :feature:home이 여전히 Movie 예제 — challenge 도메인으로 교체 필요 (Sprint 1~2).",
+      "⚠️ CLAUDE.md의 모듈 구조가 README와 불일치 — :core:domain/network/data 라고 적혀 있으나 실제는 :domain:*/:remote:*/:data:* 구조. 정정 필요."
     ]
   },
   "backend": {
