@@ -25,8 +25,16 @@
       "taunt_messages, notifications, user_stats, friend_records"
     ],
     "recent_changes": [
-      "2026-04-23: 로그인 단계의 SMS 인증만 제거 (카카오 로그인만으로 식별). 전화번호 관련 기능(users.phone_number/phone_verified 컬럼, /friends/sync-contacts, 4.3 전화번호 기반 친구 매칭, 전화번호 SHA-256 해시 저장 정책)은 유지. 제거된 항목: /api/v1/auth/phone/send, /api/v1/auth/phone/verify, Redis phone:verify 캐시. SMS 없이 전화번호를 어떻게 등록할지는 ADR-0008."
+      "2026-04-23: 로그인 단계의 SMS 인증만 제거 (카카오 로그인만으로 식별). 전화번호 관련 기능(users.phone_number/phone_verified 컬럼, /friends/sync-contacts, 4.3 전화번호 기반 친구 매칭, 전화번호 SHA-256 해시 저장 정책)은 유지. 제거된 항목: /api/v1/auth/phone/send, /api/v1/auth/phone/verify, Redis phone:verify 캐시.",
+      "2026-04-23: 8개 ADR 전부 accepted (0003은 in-progress). 핵심 결정: Flyway(0001), BaseResponse 패턴 + 항상 HTTP 200 + code 기반 에러(0002), Lovable 참조 전용(0004), iOS+Android 동시 MVP(0005), STT 클라이언트 SDK + 정확도 모니터링(0006), local→AWS phased(0007), Kakao account_phone_number scope(0008)."
     ],
+    "api_convention": {
+      "error_model": "Always HTTP 200. Body follows BaseResponse pattern. code=200 success, code=700/701/702/703/705 business errors by UI treatment, code=401 token expired.",
+      "base_response_source": "/Users/hwamulman/hwamulman-workspace/CarOwnerRenew/remote/model/src/main/kotlin/ktc/cargo/driver/remote/model/base/BaseResponse.kt",
+      "api_code_source": "/Users/hwamulman/hwamulman-workspace/CarOwnerRenew/remote/datasource/src/main/kotlin/ktc/cargo/driver/remote/datasource/apiResult/ApiCode.kt",
+      "server_dto_pattern": "data class XxxResponse(val data: XxxData) : BaseResponse()",
+      "mobile_handler": ":remote:datasource의 ApiResultCall이 body.code == 200만 Success로 간주, 나머지는 ApiResult.Failure.CustomError(code, message)"
+    },
     "challenge_states": ["PENDING", "ACCEPTED", "REJECTED", "CONTRACT_SIGNING", "IN_PROGRESS", "COMPLETED", "EXPIRED"],
     "challenge_results": ["CHALLENGER_WIN", "OPPONENT_WIN", "DRAW", "BOTH_LOSE"]
   },

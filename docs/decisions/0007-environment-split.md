@@ -1,6 +1,6 @@
 # ADR-0007: 환경 분리 전략 (dev / staging / prod)
 
-- **상태**: pending
+- **상태**: accepted (2026-04-23, phased)
 - **생성**: 2026-04-23
 - **영향 범위**: 백엔드 프로파일, 모바일 빌드 variant, Firebase 프로젝트, CI/CD
 
@@ -49,7 +49,45 @@
 
 ## 결정
 
-**미정.** 첫 실서버 배포 일정 확정 시점까지 결정.
+**2026-04-23: Phase 1 = 로컬만, Phase 2 = AWS prod (accepted, phased).**
+
+### Phase 1 (현재~출시 전, 로컬 단일 환경)
+
+**백엔드:**
+- PostgreSQL @ `localhost:5432/challenge`
+- Redis @ `localhost:6379`
+- Spring profile: 단일 (분리 없이 `application.yml` 하나)
+- secrets: `application.yml`의 `${VAR:default}` + 개발자 로컬 환경 변수 or `.env`
+
+**모바일:**
+- API base URL:
+  - Android emulator: `http://10.0.2.2:8080`
+  - iOS simulator: `http://localhost:8080`
+  - 실기기(같은 Wi-Fi): 개발자 Mac IP, 예: `http://192.168.x.x:8080`
+- buildkonfig에 `CHALLENGE_API_BASE_URL` 단일 상수로 주입 (`local.properties`에서)
+- Kakao 앱 키: 개발용 1개
+- Firebase: dev 프로젝트 1개 (google-services.json / GoogleService-Info.plist)
+
+**인프라:**
+- CI/CD: 현재 없음 (로컬 개발만)
+- 모니터링: 로그 콘솔 출력
+
+### Phase 2 (출시 직전, AWS 전환 — 별도 ADR로 확정)
+
+- 서버: EC2 또는 ECS(Fargate), RDS PostgreSQL, ElastiCache Redis, S3(이미지 저장), CloudFront
+- 도메인 + Route 53 + ACM (HTTPS)
+- prod용 Kakao 앱 분리, Firebase prod 프로젝트 분리
+- Spring profile `local` / `prod` 분리
+- 모바일 빌드 variant: `dev` / `prod`, buildkonfig에서 환경별 URL 주입
+- CI/CD: GitHub Actions (빌드 + 배포)
+- 비용 관리: 프리티어 최대한 활용 + billing alert
+
+### 전환 체크리스트 (Phase 2 착수 시)
+- [ ] ADR-0007을 superseded로 변경, 신규 ADR(AWS 배포 전략) 작성
+- [ ] 도메인 확보 (maengse.app 또는 대체)
+- [ ] AWS 계정 + IAM 설정
+- [ ] RDS 백업 정책, S3 버전관리, 로그 집계(CloudWatch)
+- [ ] Flyway 마이그레이션 prod 적용 전 staging으로 검증
 
 ## 참조
 

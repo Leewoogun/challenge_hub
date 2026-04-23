@@ -1,6 +1,6 @@
 # ADR-0008: 전화번호 등록 플로우 (SMS 인증 없이)
 
-- **상태**: pending
+- **상태**: accepted (2026-04-23)
 - **생성**: 2026-04-23
 - **영향 범위**: 온보딩, 설정, 친구 매칭 활성화 조건, `users.phone_verified` 의미
 
@@ -82,7 +82,46 @@ SMS 인증이 사라진 이상 이 컬럼의 의미가 모호. 세 가지 옵션
 
 ## 결정
 
-**미정.** 친구 매칭 sub-feature 착수 전 확정.
+**2026-04-23: A안 (Kakao OAuth `account_phone_number` scope) 확정 (accepted).**
+
+카카오 로그인 시 `account_phone_number` scope로 카카오 계정에 등록된 전화번호를 받아 사용. 카카오가 이미 SMS 인증해둔 번호이므로 별도 SMS 플로우 불필요.
+
+### 구현 절차
+
+1. **카카오디벨로퍼 콘솔 설정** (사용자 작업)
+   - challenge 앱 → "동의 항목"에 **카카오계정(전화번호)** 추가
+   - 비즈니스 앱 전환 + 검수 필요할 수 있음 — **Sprint 0 내 확인 필수**
+   - 검수 실패 시 fallback 플랜: 설정 화면에 "전화번호 직접 입력" 추가 (B안 부분 도입)
+
+2. **모바일 구현**
+   - Kakao SDK 로그인 요청 시 scope 목록에 `account_phone_number` 포함 (Android/iOS 공통 actual)
+   - 로그인 응답에서 `kakao_account.phone_number` (국제 포맷: `+82 10-1234-5678`) 추출
+   - 서버 `POST /api/v1/auth/kakao`에 함께 전달
+
+3. **서버 처리 (ADR-0002 foundation 반영)**
+   - `users.phone_number` = SHA-256(정규화된 전화번호) — `+821012345678` 형태로 정규화 후 해시
+   - `users.phone_verified = true` (Kakao 경로로 받은 경우)
+   - 첫 로그인 시 scope 동의 거부했으면 `phone_number = null`, `phone_verified = false`
+
+### phone_verified 의미 재정의
+
+- `true` = Kakao scope로 인증된 번호 (카카오가 SMS 인증함)
+- `false` = 미제공 또는 동의 거부 — 친구 매칭 탐색 대상에서 제외
+
+### 사용자가 scope 동의 거부 시 fallback
+
+- 로그인은 정상 진행 (카카오 로그인 자체는 성공)
+- 닉네임 검색으로 친구 추가 가능
+- "연락처로 친구 찾기" 탭 진입 시 scope 재요청 UX 유도 (Kakao SDK `additionalConsent`)
+- 계속 거부하면 친구 매칭 기능 사용 불가 — 메시지로 안내
+
+### 리스크 체크리스트
+
+- [ ] 카카오디벨로퍼에서 `account_phone_number` 권한 신청 (Sprint 0 내)
+- [ ] 검수 소요 시간 파악 (보통 1~2주)
+- [ ] 검수 실패 시 B안(직접 입력) 부분 도입 준비
+- [ ] iOS Kakao SDK도 동일 scope 지원 확인
+- [ ] 정규화 규칙: 국가 코드 `+82`, 대시 제거, 앞자리 0 처리 (클라/서버 동일)
 
 ## 참조
 

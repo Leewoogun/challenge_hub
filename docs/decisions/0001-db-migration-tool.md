@@ -1,6 +1,6 @@
 # ADR-0001: DB 마이그레이션 도구 선택
 
-- **상태**: pending
+- **상태**: accepted (2026-04-23)
 - **생성**: 2026-04-23
 - **영향 범위**: backend 모든 스키마 변경, 첫 기능 구현 전에 필요
 
@@ -27,7 +27,18 @@
 
 ## 결정
 
-**미정.** 첫 백엔드 기능(예: auth-login) 스펙 작성 시점까지 결정 필요. 결정되면 이 파일 상태를 `accepted`로 바꾸고, ADR-0002(foundation)의 체크리스트에 반영.
+**2026-04-23: Flyway로 확정 (accepted).**
+
+### 구성
+- 의존성: `spring-boot-starter-flyway` + `org.flywaydb:flyway-database-postgresql`
+- 마이그레이션 경로: `app/src/main/resources/db/migration/`
+- 파일 네이밍: `V{n}__{snake_case_description}.sql` (예: `V1__init.sql`, `V2__add_challenge_table.sql`)
+- 테이블·컬럼 네이밍: snake_case (Hibernate 기본 네이밍 전략)
+- 첫 `V1__init.sql`은 ADR-0002 foundation sub-feature와 함께 작성 — `users` 테이블 스키마 포함
+
+### 운영 원칙
+- 배포된 마이그레이션은 수정 금지 — 새 버전으로 추가
+- 로컬 개발 중에는 `flyway:clean`으로 초기화 가능, prod에서는 금지
 
 ## 참조
 

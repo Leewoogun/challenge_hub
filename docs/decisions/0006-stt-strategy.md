@@ -1,6 +1,6 @@
 # ADR-0006: STT (음성 → 텍스트) 제공 방식
 
-- **상태**: pending
+- **상태**: accepted (2026-04-23, 모니터링 필요)
 - **생성**: 2026-04-23
 - **영향 범위**: 영혼의 맹세 작성 기능, 비용, 네트워크 지연, 오프라인 대응
 
@@ -61,7 +61,54 @@
 
 ## 결정
 
-**미정.** 계약서(`:feature:contract`) 모듈 구현 시점까지 결정 필요. Sprint 2 착수 전 확정.
+**2026-04-23: A안 (클라이언트 SDK) 기본 채택. 단, 정확도 모니터링 후 부족 시 C안(하이브리드)으로 전환 (accepted with monitoring).**
+
+사용자 의도: "클라이언트 SDK 선호 + 정확도 높은 것 선호" — 상충 요소를 A+모니터링으로 절충.
+
+### 정확도 최대화 전략 (A안 내에서)
+
+| 플랫폼 | API | 설정 |
+|-------|-----|------|
+| Android | `SpeechRecognizer` | `EXTRA_LANGUAGE_MODEL = LANGUAGE_MODEL_FREE_FORM`, `EXTRA_LANGUAGE = "ko-KR"`, `EXTRA_PREFER_OFFLINE = false` (네트워크 기반 고정확도 모델) |
+| iOS | `SFSpeechRecognizer` | `locale = Locale(identifier: "ko_KR")`, `requiresOnDeviceRecognition = false` |
+
+공통:
+- **계약서 도메인 어휘 힌트** 주입 시도 (iOS `SFSpeechRecognitionRequest.contextualStrings`, Android는 직접 지원 제한적 → 후처리 교정 테이블 검토)
+- 사용자 **직접 편집 필수** — STT 결과는 텍스트 필드에 바인딩, 사용자가 수정하여 계약서 확정
+
+### 모니터링 및 Fallback 트리거
+
+MVP 출시 후 다음 지표 수집:
+- **재녹음 비율**: 30% 초과 시 문제
+- **STT → 확정 전 편집 비율**: 40% 초과 시 문제
+- **정확도 피드백(부정적)**: 20% 초과 시 문제
+
+하나라도 트리거되면:
+1. 서버 `POST /api/v1/stt/convert` 엔드포인트 구현 (Google Cloud Speech-to-Text 또는 Kakao Neuro STT 연동)
+2. 클라이언트에서 A(SDK) 1차 → confidence score 낮거나 짧은 발화면 B(서버) 2차 — 하이브리드
+3. ADR-0006을 업데이트 (superseded by 하이브리드 변형)
+
+### 기술 구현 (commonMain)
+
+```kotlin
+// :domain:usecase (또는 :core:stt)
+expect class SpeechRecognizer(context: Any? = null) {
+    val isAvailable: Boolean
+    suspend fun start(): Flow<RecognitionResult>
+    fun stop()
+}
+
+data class RecognitionResult(
+    val text: String,
+    val confidence: Float,  // fallback 판단용
+    val isFinal: Boolean,
+)
+```
+
+### Sprint 2 착수 전 체크
+- [ ] Android: `RECORD_AUDIO` 권한 요청 플로우
+- [ ] iOS: `NSSpeechRecognitionUsageDescription` + `NSMicrophoneUsageDescription` Info.plist
+- [ ] 네트워크 없을 때 UX (온디바이스 fallback 또는 에러 메시지)
 
 ## 참조
 

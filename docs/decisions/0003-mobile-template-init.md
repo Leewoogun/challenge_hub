@@ -53,7 +53,20 @@ cd /Users/hwamulman/woogunProject/challenge/challenge-app
 
 ## 결정
 
-**미정.** 모바일 작업 본격 착수 전 반드시 1~2, 5 완료. pm-lead는 mobile-dev 에이전트에게 작업을 할당하기 전 이 ADR 상태를 확인.
+**2026-04-23: 부분 accepted. 패키지·프로젝트명 리네임은 완료, 잔여 4개 항목은 개발하면서 자연스럽게 반영 (in-progress).**
+
+### 완료
+- 패키지 `com.lwg.base` → `com.lwg.challenge` ✅
+- 프로젝트명 `CmpSystem` → `Challenge` ✅
+
+### 잔여 (블로킹 아님, 개발 병행)
+- **API base URL 교체**: challenge 서버 로컬 동작 확인 후(Sprint 0 끝무렵). `remote/network/build.gradle.kts` + `local.properties`의 `tmdb_token` 정리.
+- **`:feature:ex1/ex2/ex3` 제거**: 첫 challenge feature 착수 시점에 함께 정리.
+- **`:feature:home` Movie 예제 교체**: Sprint 1~2 홈 화면 구현 시 자연스럽게 교체.
+- **`challenge-app/CLAUDE.md` 모듈 구조 정정**: `:core:domain/network/data` → 실제 `:domain:*`/`:remote:*`/`:data:*` 구조 반영. 모바일 레포에서 별도 수정.
+
+### pm-lead 지침
+잔여 항목은 `repos.json` `mobile.blockers`로 트래킹. 모바일 작업 할당 시 블로커가 해당 기능에 영향 주는지만 점검하고, 아니면 진행.
 
 ## 참조
 

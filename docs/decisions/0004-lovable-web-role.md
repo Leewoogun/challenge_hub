@@ -1,6 +1,6 @@
 # ADR-0004: Lovable 디자인의 웹 프런트 역할 여부
 
-- **상태**: pending
+- **상태**: accepted (2026-04-23)
 - **생성**: 2026-04-23
 - **영향 범위**: 디자인 브릿지 작업 범위, 백엔드 CORS, 전체 제품 전략
 
@@ -38,7 +38,14 @@
 
 ## 결정
 
-**미정.** 결정 전까지 design-bridge는 A 기준으로 동작(참조만). 백엔드 CORS도 모바일만 고려.
+**2026-04-23: A안 (참조 전용) 확정 (accepted).**
+
+- Lovable `challenge-design/oathbound-challenges`는 **배포하지 않음** — 순전히 PM/디자인/모바일이 참조하는 용도.
+- Cloudflare 관련 구성(`wrangler.jsonc`, `@cloudflare/vite-plugin`)은 방치 (제거 불필요, 혼선만 없도록 PM만 인지).
+- design-bridge 에이전트는 `src/styles.css` 토큰, `src/routes/` 화면 흐름, `src/components/` 컴포넌트 패턴을 읽어 모바일 명세(`docs/features/{id}/design.md`)로 변환.
+- 백엔드 CORS는 **모바일 origin만** 허용 (ADR-0002 foundation에 반영).
+
+향후 웹 배포가 필요해지면 별도 ADR로 재논의.
 
 ## 참조
 
