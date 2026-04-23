@@ -17,7 +17,7 @@
       "pm_review": "https://www.notion.so/34b3902cbe2481b297ccd1c0a6f264d5"
     },
     "core_entities": [
-      "users (kakao_id, nickname[+hash], fcm_token) — 전화번호 컬럼은 2026-04-23 제거됨 (기획서 변경, ADR-0008)",
+      "users (kakao_id, nickname, phone_number hash, phone_verified, fcm_token)",
       "friendships (requester, receiver, status)",
       "challenges (challenger, opponent, missions, bet, deadline, status, result)",
       "contracts (challenge 1:1, signatures, is_finalized)",
@@ -25,7 +25,7 @@
       "taunt_messages, notifications, user_stats, friend_records"
     ],
     "recent_changes": [
-      "2026-04-23: 로그인 플로우에서 전화번호 인증 제거 (카카오 로그인만). 영향: users.phone_number/phone_verified 컬럼 제거, /auth/phone/send|verify 및 /friends/sync-contacts 엔드포인트 제거, 친구 매칭 대안은 ADR-0008에서 결정."
+      "2026-04-23: 로그인 단계의 SMS 인증만 제거 (카카오 로그인만으로 식별). 전화번호 관련 기능(users.phone_number/phone_verified 컬럼, /friends/sync-contacts, 4.3 전화번호 기반 친구 매칭, 전화번호 SHA-256 해시 저장 정책)은 유지. 제거된 항목: /api/v1/auth/phone/send, /api/v1/auth/phone/verify, Redis phone:verify 캐시. SMS 없이 전화번호를 어떻게 등록할지는 ADR-0008."
     ],
     "challenge_states": ["PENDING", "ACCEPTED", "REJECTED", "CONTRACT_SIGNING", "IN_PROGRESS", "COMPLETED", "EXPIRED"],
     "challenge_results": ["CHALLENGER_WIN", "OPPONENT_WIN", "DRAW", "BOTH_LOSE"]
