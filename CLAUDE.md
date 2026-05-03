@@ -19,8 +19,11 @@
 - `docs/features/{feature-id}/` — 기능별 문서 묶음
   - `spec.md`, `api-contract.md`, `mobile-report.md`, `backend-report.md`, `design.md`(UI), `summary.md`, `change-log.md`
 - `docs/features/INDEX.md` — 전체 현황 (신규 feature 완료 시 갱신)
+- `docs/backlog.md` — 프로젝트 전반의 TODO/미해결/대기 항목 통합 백로그 (각 feature 종료 시 `report-and-document` 스킬이 자동 갱신, "백로그 정리해줘" 요청으로 임의 시점 단독 갱신 가능)
+- `docs/backlog-archive/{YYYY-MM}.md` — 백로그 "최근 완료"가 10건 초과 시 월별 아카이브
+- `docs/design-system/` — 토큰/색상 카탈로그 (`tokens.md`, `colors.md`)
 - `docs/status/{YYYY-Www}.md` — 주간 리포트 (`weekly-status` 스킬)
-- `docs/decisions/` — ADR 용 (필요 시)
+- `docs/decisions/` — ADR 용
 
 ## 규칙
 - feature-id는 kebab-case 명사형. `user-login` (O), `viewUserProfile` (X).
