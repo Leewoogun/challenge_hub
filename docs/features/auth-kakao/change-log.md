@@ -2,6 +2,49 @@
 
 각 항목은 spec/api-contract/구현 코드 중 어디서 변경이 일어났는지 명시한다. `api-contract.md`(status: confirmed) 자체는 변경된 적 없음 — 코드/문서가 contract를 따라가도록 정렬한 이력만 기록.
 
+## 2026-05-07 — iOS Kakao SDK 실연동 완료 (T-M9 잔여 해소)
+
+직전(같은 날) Android SDK 실연동 항목에서 placeholder로 남았던 iOS 통합이 완전히 채워졌다. **Android+iOS 모두 SDK 통합 완료** — 다음 sprint부터 카카오 로그인이 실제 단말 양쪽에서 동작.
+
+### 변경 (`challenge-app`)
+
+#### iOS SPM 의존성
+- `iosApp/iosApp.xcodeproj/project.pbxproj` — `XCRemoteSwiftPackageReference "kakao-ios-sdk"` 추가 (`https://github.com/kakao/kakao-ios-sdk`). Frameworks에 `KakaoSDKAuth` / `KakaoSDKCommon` / `KakaoSDKUser` 모두 링크. **CocoaPods 미사용** (Podfile/`Pods/`/`xcworkspace` 없음 — SPM 단일 채택).
+
+#### Kotlin actual 구현 (placeholder → 실 구현)
+- `feature/login/src/iosMain/.../kakao/KakaoAuthClient.ios.kt` — `KakaoLoginBridge.loginHandler`를 `suspendCancellableCoroutine`으로 감싸 Success/Failure/Cancelled로 매핑. placeholder 메시지 전체 제거.
+- `feature/login/src/iosMain/.../kakao/KakaoLoginBridge.kt` — `object KakaoLoginBridge { var loginHandler }` (Kotlin/Native ↔ Swift 통신 entry).
+- `composeApp/src/iosMain/.../KakaoLoginSetup.kt` — `interface KakaoLoginHandler` + `fun registerKakaoLoginHandler(handler)` (Kotlin이 Swift 구현체를 받는 경로).
+
+#### Swift 측 bridge 구현
+- `iosApp/iosApp/KakaoLoginHelper.swift` — `KakaoLoginHelperImpl: KakaoLoginHandler`. `UserApi.shared.loginWithKakaoTalk` 우선, 실패 시 `loginWithKakaoAccount` fallback. 취소 식별(`SdkError.getClientError().reason == .Cancelled`)까지 처리하여 `KakaoAuthResult.Cancelled`로 매핑.
+- `iosApp/iosApp/iOSApp.swift` — `init()`에서 `KakaoSDK.initSDK(appKey:)` (Info.plist의 `KAKAO_NATIVE_APP_KEY` 읽음, 비어있으면 경고 후 skip). `WindowGroup.onOpenURL`에서 `AuthApi.isKakaoTalkLoginUrl(url)` 체크 후 `AuthController.handleOpenUrl(url:)` 처리. `registerKakaoLoginHandler(handler: KakaoLoginHelperImpl())`로 bridge 등록.
+
+#### Info.plist + secret 주입
+- `iosApp/iosApp/Info.plist` — `kakao{KAKAO_NATIVE_APP_KEY}` literal → `kakao$(KAKAO_NATIVE_APP_KEY)` Xcode 빌드 변수로 교체.
+- `iosApp/Configuration/Config.xcconfig` — 기본 설정.
+- `iosApp/Configuration/Secrets.xcconfig` — gitignored. 사용자가 실 NATIVE APP KEY 기입.
+- `iosApp/Configuration/Secrets.xcconfig.template` — 템플릿 커밋, 신규 개발자 가이드.
+- `.gitignore` — `Secrets.xcconfig` 추가.
+
+### 빌드/테스트
+- `:composeApp:linkDebugFrameworkIosSimulatorArm64` BUILD SUCCESSFUL (24s)
+- `:feature:login:iosSimulatorArm64Test` BUILD SUCCESSFUL (UP-TO-DATE — 기존 4 케이스 그대로, KMP commonTest가 iOS Simulator에서도 실행되므로 별도 iOS 테스트 추가 불필요)
+- Xcode SPM resolve / 시뮬레이터 실행 검증은 사용자 측에서 수행
+
+### 사용자 액션 상태
+- ✅ NATIVE APP KEY 발급 + `Secrets.xcconfig` 기입 완료
+- ✅ Android `local.properties.kakao_native_app_key` 동일 값 채움
+- ⚠️ Android keyhash 카카오 콘솔 등록 여부 미확인 — 백로그 등재
+- ⚠️ 실 단말 E2E (Android 카카오톡 앱-간 인증 + 웹 fallback / iOS 동일) 수동 검증 미수행 — 백로그 등재
+
+### 잔여 / 후속
+- iOS SPM `XCRemoteSwiftPackageReference`의 `requirement` 설정(`upToNextMajor` 등) 적정성 확인 — 백로그 등재
+- iOS Simulator + 실 디바이스 카카오톡 핸드오프 E2E 수동 테스트 — 백로그 등재
+- iOS Keychain 실기기 smoke (별건, 직전부터 백로그 잔존)
+
+---
+
 ## 2026-05-07 — 백엔드 contract drift 정정 (REST API → SDK 정렬)
 
 ### 발견

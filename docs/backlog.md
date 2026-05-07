@@ -4,7 +4,7 @@
 >
 > **자동 갱신**: pm-lead가 `report-and-document` 스킬로 feature를 마무리할 때마다 summary.md의 미해결 이슈를 본 백로그에 자동 추가. 임의 시점 재정리는 "백로그 정리해줘" 한 마디로 pm-lead에게 요청.
 
-- **마지막 갱신**: 2026-05-07 (auth-kakao contract drift 정정 + Android Kakao SDK 실연동 + 디자인 시스템 ColorScheme 단일화 + Typography Lovable 정합)
+- **마지막 갱신**: 2026-05-07 (iOS Kakao SDK 실연동 완료 — Android+iOS 모두 SDK 통합 완료)
 - **우선순위 기호**: 🔴 긴급(블로커) / 🟡 중요 / 🟢 일반 / 🔵 대기(외부 의존)
 - **담당 약어**: pm / mobile / backend / design / user(사용자가 직접 처리)
 
@@ -18,8 +18,7 @@ _없음 — 다음 sprint 시작에 직접적 블로커는 없음._
 
 | 항목 | 출처 | 담당 | 메모 |
 |---|---|---|---|
-| iOS Kakao SDK 정식 통합 (Pod/SPM + AppDelegate URL handler + Swift→Kotlin bridge) | [auth-kakao/change-log.md](./features/auth-kakao/change-log.md) | mobile | Android는 ✅ 2026-05-07 완료. iOS만 placeholder actual(`KakaoAuthClient.ios.kt`). 단계는 docstring 참조. |
-| Kakao 콘솔 NATIVE APP KEY 발급 + Android keyhash 등록 + Info.plist literal 치환 | [auth-kakao/change-log.md](./features/auth-kakao/change-log.md) | user | `local.properties.kakao_native_app_key` 채워야 SDK 동작. |
+| Android keyhash 카카오 콘솔 등록 | [auth-kakao/change-log.md](./features/auth-kakao/change-log.md) | user | NATIVE APP KEY는 ✅ 발급+기입 완료. 콘솔에 `debug.keystore` SHA1 keyhash 등록 여부 확인 필요. |
 | 영혼의 맹세(STT + 서명) 화면 디자인 | 노션 [📋 Common States & PM Questions](https://app.notion.com/p/3523902cbe248111ac2dd40fcd8fda64) | design + user | 핵심 플로우인데 Lovable에 화면 부재. 디자이너 작업 필요. |
 | 전화번호 등록 화면 UX (SMS 인증 제거 후) | 노션 동상 / [ADR-0008](./decisions/0008-friend-matching.md) | design + user | 친구 매칭 활성화 조건. 카카오 scope 동의/마이페이지 등록 등 등록 경로 미정. |
 | LoginScreen 디자인 2차 반영 (Lovable 토큰 전체 적용) | [auth-kakao/design.md](./features/auth-kakao/design.md) | mobile | 현재 placeholder UI. Color는 통합됨, 로고/그라데이션 위치/타이포 본격 적용 필요. |
@@ -30,7 +29,8 @@ _없음 — 다음 sprint 시작에 직접적 블로커는 없음._
 | 항목 | 출처 | 담당 | 메모 |
 |---|---|---|---|
 | AuthKakao 통합 테스트 수동 실행 (Docker Desktop 후 `--tests "*AuthKakaoIntegrationTest"`) | [auth-kakao/backend-report.md](./features/auth-kakao/backend-report.md) | user + backend | 5 케이스 검증 (drift 정정 후 5xx 1회 재시도→703 시나리오 추가). CI 적용 시 docker-in-docker 필요. |
-| 로컬 서버 기동 + 모바일 수동 smoke test (real Kakao SDK 흐름) | [auth-kakao/summary.md](./features/auth-kakao/summary.md) | user | NATIVE APP KEY 기입 후 Android 실기기/에뮬레이터에서 카카오 로그인 → JWT 발급 end-to-end 확인. |
+| 로컬 서버 기동 + 모바일 수동 smoke test (Android+iOS real Kakao SDK 흐름) | [auth-kakao/summary.md](./features/auth-kakao/summary.md) | user | NATIVE APP KEY 기입 완료. Android 에뮬레이터/실기기 + iOS Simulator/Device에서 카카오 로그인 → JWT 발급 E2E 확인 필요. 카카오톡 앱-간 인증과 웹 fallback 둘 다. |
+| iOS SPM 카카오 SDK 버전 pin 적정성 확인 | [auth-kakao/change-log.md](./features/auth-kakao/change-log.md) | mobile | `iosApp/iosApp.xcodeproj/project.pbxproj`의 `XCRemoteSwiftPackageReference`에 `requirement`(`upToNextMajor` 등) 명시 여부 점검. |
 | `application.yml` Swagger UI path 한글자음 'ㅠ' 오타 정정 | [auth-kakao/change-log.md](./features/auth-kakao/change-log.md) | backend | line 60 `swagger-ui.path: /swagger-ui/index.htmlㅠ`. Swagger UI 접근 안 될 가능성. 즉시 수정 가능. |
 | `:feature:login:check` detekt config 부재 (`/config/detekt/detekt.yml`) | [auth-kakao/change-log.md](./features/auth-kakao/change-log.md) | mobile | 컴파일/테스트는 통과하나 `check` 태스크 fail. 인프라 티켓. |
 | iOS Keychain 실기기 smoke (write/read roundtrip) | [auth-kakao/mobile-report.md](./features/auth-kakao/mobile-report.md) | mobile | SecItemAdd/Copy 상태코드 확인. |
@@ -68,9 +68,9 @@ _없음 — 다음 sprint 시작에 직접적 블로커는 없음._
 - 디자이너 시각 검증 5건
 
 ### 모바일 (mobile)
-- iOS Kakao SDK 정식 통합 (Android는 ✅ 완료)
 - LoginScreen 2차 디자인 반영
 - iOS Keychain 실기기 smoke
+- iOS SPM 카카오 SDK 버전 pin 적정성 확인
 - ex1~3 제거 / home 교체 / CLAUDE.md 정정
 - detekt config 부재 정리
 
@@ -94,6 +94,7 @@ _없음 — 다음 sprint 시작에 직접적 블로커는 없음._
 
 ## ✅ 최근 완료 (최근 10건만 유지, 초과 시 archive로)
 
+- 2026-05-07 — **iOS Kakao SDK 실연동 완료** (SPM `kakao-ios-sdk` 통합, `KakaoLoginHelper.swift` Swift→Kotlin bridge, `iOSApp.swift` `KakaoSDK.initSDK` + `onOpenURL` URL handler, Info.plist `kakao$(KAKAO_NATIVE_APP_KEY)` xcconfig 변수 주입, `KakaoAuthClient.ios.kt` placeholder→실 구현. Android+iOS 모두 SDK 통합 완료)
 - 2026-05-07 — 백엔드 카카오 로그인 SDK 방식 정렬 (drift 정정: `/oauth/token` 교환 코드 + `KAKAO_REST_API_KEY` 등 4개 env 제거. `:infra/:api/:app` BUILD SUCCESSFUL, AuthControllerTest 5/5)
 - 2026-05-07 — 모바일 Android Kakao SDK 실연동 (`com.kakao.sdk:v2-user:2.20.6`, `loginWithKakaoTalk` → fallback `loginWithKakaoAccount`, LoginViewModelTest 4/4)
 - 2026-05-07 — `:core:designsystem` ColorScheme 단일화 (`ChallengeExtendedColors` 폐지 → `ChallengeColorScheme` 단일, `ChallengeTheme.colorScheme.<name>` 단일 진입점) + colors.md/tokens.md/노션 동기
@@ -101,9 +102,10 @@ _없음 — 다음 sprint 시작에 직접적 블로커는 없음._
 - 2026-04-30 — 디자인 노션 하위 페이지 5건 정리 (Color/Typography/Component/Screens/Common States)
 - 2026-04-30 — `:core:designsystem` Lovable 다크 기준 1차 통합 + ExtendedColors/Brushes/BrandColors 신설
 - 2026-04-30 — `colors.md` + 노션 Color Tokens 페이지 + tokens.md 1차 동기
-- 2026-04-24 — feature **auth-kakao** 완료 (partially-completed: 디자인 2차 반영·iOS SDK 통합 잔여)
+- 2026-04-24 — feature **auth-kakao** 완료 (partially-completed: 디자인 2차 반영·통합 테스트 수동 실행 잔여)
 - 2026-04-24 — feature **foundation** 완료 (Flyway + BaseResponse + JWT + Auth skeleton)
-- 2026-04-23 — ADR-0001~0008 8개 결정 (0003은 in-progress)
+
+> 한도(10건) 초과로 2026-04-23 ADR-0001~0008 항목은 [backlog-archive/2026-04.md](./backlog-archive/2026-04.md)로 이동(2026-05-07).
 
 ---
 
