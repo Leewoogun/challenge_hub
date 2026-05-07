@@ -1,14 +1,17 @@
 # 카카오 로그인 (auth-kakao) — Summary
 
 - **feature-id**: auth-kakao
-- **완료일**: 2026-04-24
+- **최초 완료일**: 2026-04-24
+- **최종 갱신**: 2026-05-07 (백엔드 SDK 정렬 + 모바일 Android SDK 실연동 — [change-log.md](./change-log.md))
 - **상태**: partially-completed
 
-> 서버·모바일 모두 코드 완성 + 빌드/테스트 통과. 단, ① Kakao SDK 네이티브 연동(Android/iOS 의존성 + 키 등록), ② 디자인 2차 반영, ③ Docker 기반 통합 테스트 수동 실행이 사용자 action으로 남아있어 **partially-completed**로 기록.
+> 서버·모바일·계약 모두 SDK 방식으로 정렬됨(2026-05-07). **Android는 Kakao SDK 실연동 완료**, **iOS만 placeholder** (Pod/SPM + AppDelegate + Swift bridge 후속). 그 외 잔여: ① 디자인 2차 반영, ② Docker 기반 통합 테스트 수동 실행, ③ 사용자 콘솔 작업(NATIVE APP KEY 발급, keyhash 등록).
 
 ## 구현 개요
 
-Sprint 0 `foundation`의 스텁(`userId=1L` 고정)을 실제 Kakao OAuth 연동으로 교체하고, 모바일 측에 전체 로그인 플로우(스플래시 → 토큰 확인 → 자동 로그인 또는 로그인 화면 → 홈)를 구축했다. 백엔드는 WebClient로 `/v2/user/me`를 호출해 토큰을 검증하고 users upsert + phone SHA-256 해시 저장 + JWT 발급을 단일 트랜잭션으로 수행한다. 모바일은 DTO/API/UseCase/Repository/SecureTokenStorage(Android Keystore + iOS Keychain) + LoginScreen/SplashScreen + Navigation을 스킬 절차대로 구현했다. Kakao SDK 네이티브 호출만 expect/actual stub(`"TEST_TOKEN_DO_NOT_USE"` 반환)으로 남겨 두 시스템 간 인터페이스 검증은 가능한 상태.
+Sprint 0 `foundation`의 스텁(`userId=1L` 고정)을 실제 Kakao OAuth 연동으로 교체하고, 모바일 측에 전체 로그인 플로우(스플래시 → 토큰 확인 → 자동 로그인 또는 로그인 화면 → 홈)를 구축했다. 백엔드는 WebClient로 `/v2/user/me`를 호출해 토큰을 검증하고 users upsert + phone SHA-256 해시 저장 + JWT 발급을 단일 트랜잭션으로 수행한다 (SDK 방식 — 모바일이 SDK로 받은 access_token을 그대로 전달). 모바일은 DTO/API/UseCase/Repository/SecureTokenStorage(Android Keystore + iOS Keychain) + LoginScreen/SplashScreen + Navigation을 스킬 절차대로 구현했다.
+
+**2026-05-07 갱신**: ① 백엔드 코드가 한때 REST API Authorization Code Flow로 이탈했던 것을 SDK 흐름으로 다시 정렬(contract drift 정정). ② 모바일 Android는 `com.kakao.sdk:v2-user:2.20.6`으로 실연동 완료(`loginWithKakaoTalk` → 미설치 시 `loginWithKakaoAccount` fallback). ③ iOS는 placeholder만 도입 — Pod/SPM·AppDelegate URL handler·Swift bridge가 후속 PR로 남음. 자세한 내력은 [change-log.md](./change-log.md).
 
 ## 엔드포인트
 
@@ -58,26 +61,26 @@ Sprint 0 `foundation`의 스텁(`userId=1L` 고정)을 실제 Kakao OAuth 연동
 
 ## 테스트 결과
 
-**백엔드** (`./gradlew clean :app:build`, `./gradlew test` 모두 BUILD SUCCESSFUL):
+**백엔드** (2026-05-07 SDK 정렬 후, `:infra/:api/:app:compileKotlin` BUILD SUCCESSFUL):
 - PhoneHasherTest: 3/3 passed
 - GlobalExceptionHandlerTest: 5/5 passed
-- AuthControllerTest: 5/5 passed
-- ChallengeServerApplicationTests: 1/1 passed
-- AuthKakaoIntegrationTest: **0/4 실행, 4 skipped** (Docker 미설치 — `@EnabledIf("isDockerAvailable")`로 자동 skip)
-- **합계: 14/14 passed, 4 skipped**
+- AuthControllerTest: 5/5 passed (`code` → `kakaoAccessToken` 페이로드 정렬 반영)
+- ChallengeServerApplicationTests: 1/1 passed (`kakao.rest-api-key`/`redirect-uri` env 제거 후에도 context 로드 OK)
+- **AuthKakaoIntegrationTest: 0/5 실행, 5 skipped** (Docker 미가용 — `@EnabledIf("isDockerAvailable")`로 자동 skip). 시나리오 5건: 신규 / 기존 / phone미동의 / `/v2/user/me` 401(701) / `/v2/user/me` 5xx 1회 재시도 후 703.
+- **합계: 14/14 passed, 5 skipped**
 
-**모바일**:
-- LoginViewModelTest (commonTest): 2/2 passed (Android debug/release + iOS SimulatorArm64)
-- Android 빌드(`:composeApp:compileDebugKotlinAndroid`): ok
-- iOS 빌드(`:composeApp:linkDebugFrameworkIosSimulatorArm64`): ok
-- 레이어별 `compileCommonMainKotlinMetadata`: `:remote:*`, `:domain:*`, `:data:repositoryImpl`, `:feature:auth`, `:feature:splash`, `:feature:main` 전부 ok
+**모바일** (2026-05-07 Android SDK 실연동 후):
+- LoginViewModelTest (commonTest): **4/4 passed** (Android Unit + iOS SimulatorArm64) — OAuth Success+서버 Success / OAuth Cancelled / OAuth Failure / OAuth Success+서버 Error
+- Android 빌드(`:feature:login:compileDebugKotlinAndroid`, `:composeApp:compileDebugKotlinAndroid`): ok
+- iOS 빌드(`:composeApp:linkDebugFrameworkIosSimulatorArm64`): ok (Kotlin 측. Pod/SPM Swift 통합은 별도)
+- commonMain metadata: `:remote:*`, `:domain:*`, `:data:repositoryImpl`, `:feature:login`, `:feature:splash`, `:feature:main` 전부 ok
 
 ## 결정 사항
 
 1. **`KakaoLoginRequest`에서 `phoneNumber` 제거**: 서버가 Kakao API에서 직접 phone을 받으므로 모바일이 body에 실어 보낼 필요 없음. 모바일 변조/누락 가능성 제거. (api-contract 협의 이력 기록)
 2. **`:api` → `:infra`(JpaRepository) 직접 참조**: MVP 단순성 위해 Port/Adapter 분리 생략. 향후 도메인 로직이 많아지면 `:domain`에 `UserRepository` 인터페이스 도입 검토.
 3. **WebFlux를 `:infra`에만 추가**: Tomcat은 `:app`에서 유지. WebClient(+Netty HttpClient)만 사용, reactive 서버로 기동되지 않음.
-4. **Kakao SDK 네이티브 연동을 expect/actual stub으로 남김**: CocoaPods/SPM 설정, Android Manifest KakaoScheme 등록, Kakao 개발자 콘솔 앱 키 발급이 사용자 action(환경 의존). stub은 고정 토큰 반환하므로 서버 foundation 스텁과 end-to-end 흐름 검증 가능.
+4. **Kakao SDK 네이티브 연동 — 2026-05-07 갱신**: Android는 `com.kakao.sdk:v2-user:2.20.6` 실연동 완료(`KakaoAuthClient.android.kt` — `loginWithKakaoTalk` → 미설치 시 `loginWithKakaoAccount` fallback). `AuthCodeHandlerActivity` Manifest 등록 + `KakaoSdk.init` + buildkonfig `KAKAO_NATIVE_APP_KEY` 모두 적용. iOS는 placeholder actual만 도입(무조건 Failure 반환). Pod/SPM·AppDelegate URL handler·Swift→Kotlin bridge는 별도 PR.
 5. **phone 해시 정규화 규칙**: `+82 10-1234-5678` / `010-1234-5678` / `01012345678` 모두 `+821012345678`로 정규화 후 SHA-256(64자 hex). 추후 `/friends/sync-contacts`가 동일 유틸(`PhoneHasher`) 재사용해 해시 일치 보장.
 6. **에러 콜백 시그니처**: `AuthRepository.loginWithKakao/refreshAccessToken`이 `onError: (code: Int, message: String) -> Unit`을 받음 → ViewModel에서 code 분기(700/701/703)로 UI 처리. ADR-0002의 code 기반 에러 모델을 Domain 레이어까지 보존.
 7. **앱 시작점 교체**: `HomeRoute.Main` → `SplashRoute.Main`. 자동 로그인 체크가 모든 진입에 선행.
@@ -95,19 +98,23 @@ Sprint 0 `foundation`의 스텁(`userId=1L` 고정)을 실제 Kakao OAuth 연동
 
 ## 미해결 이슈
 
-- [ ] **Kakao SDK 네이티브 연동** (T-M9 축소): Android `com.kakao.sdk:v2-user:2.20.6` + Manifest + `KakaoSdk.init`, iOS `KakaoSDKUser` pod + Info.plist URL scheme + AppDelegate 설정. 구체 단계는 `mobile-report.md`에 정리됨.
+- [ ] **iOS Kakao SDK 정식 통합** (Android는 ✅ 2026-05-07 완료): Pod/SPM에 `KakaoSDKAuth`/`KakaoSDKUser` 추가, `iOSApp.swift` AppDelegate에서 `KakaoSDK.initSDK(appKey:)` + `application(_:open:options:)`에서 `AuthApi.handleOpenUrl` 처리, Swift→Kotlin bridge로 `AuthApi.shared.loginWithKakaoTalk`/`loginWithKakaoAccount` 콜백을 `KakaoAuthResult`로 매핑. Info.plist의 `kakao{KAKAO_NATIVE_APP_KEY}` literal을 실제 키로 치환. 단계는 `KakaoAuthClient.ios.kt` docstring에 명시.
+- [ ] **Kakao 개발자 콘솔 NATIVE APP KEY 발급 + Android keyhash 등록** (사용자 action). `local.properties.kakao_native_app_key` 채워야 SDK 초기화 + redirect scheme 동작.
 - [ ] **Kakao 개발자 콘솔 `account_phone_number` scope 승인** (사용자 action, ADR-0008). 승인 전에는 `phone_verified=false` 케이스만 end-to-end 검증 가능.
-- [ ] **Docker 기반 통합 테스트 수동 실행**: Docker Desktop 실행 후 `./gradlew :app:test --tests "*AuthKakaoIntegrationTest"`로 WireMock+Testcontainers 4케이스 검증.
-- [ ] **실 서버 로컬 기동 + 모바일 수동 smoke test**: 서버 8080에 띄우고, 모바일에서 `TEST_TOKEN_DO_NOT_USE` 보내 플로우 확인. 단 서버는 실제 Kakao 호출을 시도하므로 이 수동 검증은 real token이 있어야 완전히 동작.
+- [ ] **Docker 기반 통합 테스트 수동 실행**: Docker Desktop 실행 후 `./gradlew :app:test --tests "*AuthKakaoIntegrationTest"`로 WireMock+Testcontainers 5케이스 검증.
+- [ ] **실 서버 로컬 기동 + 모바일 수동 smoke test**: NATIVE APP KEY 기입 후 서버 8080에 띄우고 Android 실기기/에뮬레이터에서 카카오 로그인 → JWT 발급까지 end-to-end 확인.
 - [ ] **design.md 2차 반영**: LoginScreen placeholder를 Lovable 토큰/로고/그라데이션으로 교체 — 별도 PR.
 - [ ] **iOS Keychain 실기기 smoke**: `SecItemAdd/Copy` roundtrip 수동 확인.
 - [ ] **동시성 보호**: 같은 `kakao_id` 동시 로그인 시 UNIQUE 위반 재시도 로직 없음 (MVP 현실성 낮음, 향후 TODO).
 - [ ] **Refresh Token Rotation**: 로그인 시마다 새 refresh 발급되지만 옛 것 무효화 없음 — ADR-0009(예정)에서 결정.
+- [ ] **별건: `application.yml:60` Swagger UI path 한글자음 'ㅠ' 오타** — Swagger UI 접근 안 될 가능성. 별도 정정.
+- [ ] **별건: `:feature:login:check` detekt config 부재** (`/config/detekt/detekt.yml` 없음) — 인프라 티켓에서 처리.
 
 ## 참조
 
 - [spec.md](./spec.md)
-- [api-contract.md](./api-contract.md) (상태: confirmed)
+- [api-contract.md](./api-contract.md) (상태: confirmed — SDK 방식, `kakaoAccessToken` 페이로드)
+- [change-log.md](./change-log.md) — 2026-05-07 contract drift 정정 + Android SDK 실연동 이력
 - [design.md](./design.md)
 - [backend-report.md](./backend-report.md)
 - [mobile-report.md](./mobile-report.md)
