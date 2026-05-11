@@ -2,6 +2,45 @@
 
 각 항목은 spec/api-contract/구현 코드 중 어디서 변경이 일어났는지 명시한다. `api-contract.md`(status: confirmed) 자체는 변경된 적 없음 — 코드/문서가 contract를 따라가도록 정렬한 이력만 기록.
 
+## 2026-05-08 — pm-lead 디자인 결정 9건 정리 + Lovable 동기 갱신
+
+`design.md` ⚠️ 미결정 9건을 pm-lead가 일괄 결정하고, **Lovable 디자인 소스(`challenge-design/oathbound-challenges/src/routes/login.tsx`)를 동기 갱신**. 모바일 `LoginScreen.kt`는 placeholder 상태 그대로이며 본 결정은 **추후 2차 PR에서 반영 예정**.
+
+### 결정 사항 → Lovable 적용
+
+- ❌ 게스트 모드 outline 버튼 "그냥 구경만 할게요 👀" — 제거
+- ❌ 통계 칩 2개 (12,847건의 맹세 / 238잔의 벌칙 커피) — 제거
+- ❌ 카카오 버튼 말풍선 SVG 아이콘 — 제거 (텍스트 only)
+- ❌ 외곽 회전 링 (`animate-spin-slow`) — 제거 ("불꽃 모양" 아니라는 판단)
+- ❌ 부유 입자(ember 5개, `animate-float-*`) — 제거
+- ✏️ 카카오 버튼 문구 "카카오로 영혼 등록하기" → **"카카오로 시작하기"** (카카오 공식 가이드 준수)
+
+### 유지
+
+- 스탬프 fire-gradient 배경 + Flame 아이콘 + Sparkles 2개 (`animate-pulse-fire`, `animate-pulse`)
+- "SOUL CONTRACT" 영문 캡슐 뱃지
+- 타이틀 "영혼을 걸어라. 🔥" (gradient-fire 텍스트 + `animate-wiggle` 이모지)
+- `slide-up` 진입 애니메이션 (Hero / CTA 0.2s delay)
+- `gradient-glow` / `gradient-fire` blur 블롭 배경
+- 약관 풋터, 구분선 + "한 번 서명하면 무를 수 없음"
+
+### 보류 / 별도 처리
+
+- **로딩 상태 디자인**: 정식 시안 없이 현재 placeholder(전체 검정 30% 오버레이 + `CircularProgressIndicator`) 유지. 추후 디자이너 시안 나오면 재검토.
+- **디자이너 시각 검증 6건**(`docs/design-system/colors.md` §5: gradientPrimaryEnd / gradientCardStart/End / chart4 / glow brush / 135deg): 디자이너 부재로 mobile-dev 추정값 그대로 채택. 향후 미세 조정 시 별도 ADR.
+
+### 변경 파일
+
+- ✏️ `challenge-design/oathbound-challenges/src/routes/login.tsx` — ember 5개 / 외곽 회전 링 / 통계 칩 / outline 버튼 / 카카오 SVG 아이콘 제거. 카카오 문구 변경.
+- ✏️ `challenge-pm/challenge_hub/docs/features/auth-kakao/design.md` — ⚠️ 9건 → ✅ 결정 표로 교체. 본문 표(부가 요소/카카오 매핑/컴포넌트 매핑) 결정 반영.
+- ✏️ `challenge-pm/challenge_hub/docs/features/auth-kakao/change-log.md` — 본 항목.
+
+### 후속 (별도 PR)
+
+- 모바일 `LoginScreen.kt` 디자인 통합 2차 PR — 본 결정에 맞춰 Hero(스탬프 + 뱃지 + 타이틀 + 서브카피) + CTA(구분선 + 카카오 버튼 + 약관 풋터) + 배경 블롭/슬라이드업 모두 구현. 현재 placeholder("맹세" 텍스트 + 슬로건 + 카카오 버튼) 교체. 사용자 결정에 따라 일정은 미정.
+
+---
+
 ## 2026-05-07 — iOS Kakao SDK 실연동 완료 (T-M9 잔여 해소)
 
 직전(같은 날) Android SDK 실연동 항목에서 placeholder로 남았던 iOS 통합이 완전히 채워졌다. **Android+iOS 모두 SDK 통합 완료** — 다음 sprint부터 카카오 로그인이 실제 단말 양쪽에서 동작.

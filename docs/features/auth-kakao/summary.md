@@ -2,10 +2,10 @@
 
 - **feature-id**: auth-kakao
 - **최초 완료일**: 2026-04-24
-- **최종 갱신**: 2026-05-07 (Android+iOS Kakao SDK 통합 완료 + 백엔드 SDK 정렬 — [change-log.md](./change-log.md))
-- **상태**: partially-completed
+- **최종 갱신**: 2026-05-11 (LoginScreen 디자인 2차 반영 완료 — [change-log.md](./change-log.md))
+- **상태**: completed
 
-> 서버·모바일(Android+iOS)·계약 모두 SDK 방식으로 정렬·통합 완료(2026-05-07). **Android+iOS 모두 Kakao SDK 실연동 완료** — Android `com.kakao.sdk:v2-user`, iOS SPM `kakao-ios-sdk`. 잔여: ① 디자인 2차 반영, ② Docker 기반 통합 테스트 수동 실행, ③ 실 단말 E2E smoke (Android+iOS 카카오톡 핸드오프 + 웹 fallback), ④ Android keyhash 카카오 콘솔 등록 여부 확인.
+> 서버·모바일(Android+iOS)·계약 모두 SDK 방식으로 정렬·통합 완료(2026-05-07). LoginScreen 디자인 2차 반영도 완료(2026-05-11). **본 feature 범위 내 코드 작업 종료.** 운영성 잔여 항목(Docker 통합 테스트 수동 실행, 실 단말 E2E smoke, Android keyhash 등록, iOS Keychain 실기기 smoke, 시각 검증, 시각 fidelity 보완 4건)은 [backlog.md](../../backlog.md)에서 추적.
 
 ## 구현 개요
 
@@ -23,9 +23,9 @@ Sprint 0 `foundation`의 스텁(`userId=1L` 고정)을 실제 Kakao OAuth 연동
 
 ## 화면 / UI 변경
 
-- **SplashScreen (신규)**: 앱 진입점. `:feature:splash`. 저장된 refresh 토큰 확인 → 자동 로그인 시도 → 성공 시 `HomeRoute.Main`, 실패/부재 시 `AuthRoute.Login`으로 분기.
-- **LoginScreen (신규)**: `:feature:auth`. 카카오 옐로우(#FEE500) 버튼 + 그라데이션 배경 placeholder. code별 분기(700 스낵바 / 701 재로그인 다이얼로그 / 703 서버 에러 다이얼로그). Lovable 디자인 2차 반영은 후속 PR.
-- **MainScreen**: 시작점 `HomeRoute.Main` → `SplashRoute.Main`으로 교체. Splash/Auth에서는 BottomBar 숨김.
+- **SplashScreen (신규)**: 앱 진입점. `:feature:splash`. 저장된 refresh 토큰 확인 → 자동 로그인 시도 → 성공 시 `HomeRoute.Main`, 실패/부재 시 `LoginRoute`으로 분기.
+- **LoginScreen (신규 + 2차 반영 완료 2026-05-11)**: `:feature:login`. 다크 베이스 + 글로우/fire 블롭 배경, Hero(SoulStampLogo 140dp + SOUL CONTRACT 뱃지 + "영혼을 걸어라. 🔥" brush 텍스트 + 서브 카피) + CTA(LabeledDivider + 카카오 버튼 "카카오로 시작하기" 텍스트 only + 약관 풋터). slide-up/fadeIn 진입 애니메이션. code별 분기(700 스낵바 / 701 재로그인 다이얼로그 / 703 서버 에러 다이얼로그). 로딩 시 검정 30% 오버레이 + CircularProgressIndicator.
+- **MainScreen**: 시작점 `HomeRoute.Main` → `SplashRoute.Main`으로 교체. Splash/Login에서는 BottomBar 숨김.
 
 ## 주요 변경 파일
 
@@ -48,12 +48,17 @@ Sprint 0 `foundation`의 스텁(`userId=1L` 고정)을 실제 Kakao OAuth 연동
 - `domain/usecase/.../{LoginWithKakao, RefreshAccessToken, GetStoredTokens}UseCase.kt`
 - `data/repositoryImpl/.../AuthRepositoryImpl.kt`
 - `data/repositoryImpl/.../storage/SecureTokenStorage.kt` + `.android.kt` (EncryptedSharedPreferences) + `.ios.kt` (Keychain)
-- `feature/auth/` 신규 모듈 — LoginScreen/ViewModel + `KakaoLoginProvider` expect/actual stub
+- `feature/login/` 신규 모듈 — LoginScreen/ViewModel + `KakaoAuthClient` expect/actual (Android `com.kakao.sdk:v2-user`, iOS SPM bridge)
 - `feature/splash/` 신규 모듈 — SplashViewModel 자동 로그인 분기
-- `core/navigation/.../Route.kt` — `AuthRoute.Login`, `SplashRoute.Main` 추가
+- `core/navigation/.../Route.kt` — `LoginRoute`, `SplashRoute.Main` 추가
 - `feature/main/.../MainScreen.kt` — 시작점 Splash로 교체, BottomBar 노출 분기
 - `local.properties` / `remote/network/build.gradle.kts` — TMDB 제거, `challenge_api_base_url_{android,ios}` buildkonfig로 교체
-- `gradle/libs.versions.toml` — `androidx-security-crypto`, `turbine`, `kotlinx-coroutines-test` 추가
+- `gradle/libs.versions.toml` — `androidx-security-crypto`, `turbine`, `kotlinx-coroutines-test`, `kakao-sdk-user` 추가
+- **2026-05-11 디자인 2차 반영 추가분**:
+  - `core/designsystem/.../components/{StatusPillBadge, LabeledDivider, Divider, Spacer}.kt` — 신규 재사용 컴포넌트 4종
+  - `feature/login/.../component/{SoulStampLogo, BackgroundDecor, ChallengeSection, ChallengeTitle, FooterAgreementText, LoginButtonSection}.kt` — Hero/CTA 분할 composable 6종
+  - `feature/login/.../LoginScreen.kt` 교체 — placeholder → 풀세트 디자인
+  - `feature/login/build.gradle.kts` — `compose.materialIconsExtended` 추가
 
 **PM 레포**:
 - `docs/features/auth-kakao/{spec.md, api-contract.md, design.md, backend-report.md, mobile-report.md, summary.md}`
@@ -69,11 +74,12 @@ Sprint 0 `foundation`의 스텁(`userId=1L` 고정)을 실제 Kakao OAuth 연동
 - **AuthKakaoIntegrationTest: 0/5 실행, 5 skipped** (Docker 미가용 — `@EnabledIf("isDockerAvailable")`로 자동 skip). 시나리오 5건: 신규 / 기존 / phone미동의 / `/v2/user/me` 401(701) / `/v2/user/me` 5xx 1회 재시도 후 703.
 - **합계: 14/14 passed, 5 skipped**
 
-**모바일** (2026-05-07 Android SDK 실연동 후):
-- LoginViewModelTest (commonTest): **4/4 passed** (Android Unit + iOS SimulatorArm64) — OAuth Success+서버 Success / OAuth Cancelled / OAuth Failure / OAuth Success+서버 Error
-- Android 빌드(`:feature:login:compileDebugKotlinAndroid`, `:composeApp:compileDebugKotlinAndroid`): ok
-- iOS 빌드(`:composeApp:linkDebugFrameworkIosSimulatorArm64`): ok (Kotlin 측. Pod/SPM Swift 통합은 별도)
-- commonMain metadata: `:remote:*`, `:domain:*`, `:data:repositoryImpl`, `:feature:login`, `:feature:splash`, `:feature:main` 전부 ok
+**모바일** (2026-05-11 디자인 2차 반영 후):
+- LoginViewModelTest (commonTest): **4/4 passed** (Android Unit + iOS SimulatorArm64) — OAuth Success+서버 Success / OAuth Cancelled / OAuth Failure / OAuth Success+서버 Error. UI 변경에도 회귀 0.
+- Android 빌드(`:feature:login:compileDebugKotlinAndroid`, `:composeApp:compileDebugKotlinAndroid`): BUILD SUCCESSFUL
+- iOS 빌드(`:composeApp:linkDebugFrameworkIosSimulatorArm64`): BUILD SUCCESSFUL (28s)
+- commonMain metadata: `:remote:*`, `:domain:*`, `:data:repositoryImpl`, `:feature:login`, `:feature:splash`, `:feature:main`, `:core:designsystem` 전부 BUILD SUCCESSFUL
+- **시각 검증 미수행** — Compose UI 자동 검증 불가. 사용자가 Android 에뮬레이터/iOS Simulator에서 직접 확인 필요(backlog 등재).
 
 ## 결정 사항
 
@@ -85,16 +91,21 @@ Sprint 0 `foundation`의 스텁(`userId=1L` 고정)을 실제 Kakao OAuth 연동
 6. **에러 콜백 시그니처**: `AuthRepository.loginWithKakao/refreshAccessToken`이 `onError: (code: Int, message: String) -> Unit`을 받음 → ViewModel에서 code 분기(700/701/703)로 UI 처리. ADR-0002의 code 기반 에러 모델을 Domain 레이어까지 보존.
 7. **앱 시작점 교체**: `HomeRoute.Main` → `SplashRoute.Main`. 자동 로그인 체크가 모든 진입에 선행.
 
-## 디자인 확인 필요 항목 (design-bridge 플래그)
+## 디자인 결정 항목 (2026-05-08 pm-lead 확정)
 
-`design.md`에서 ⚠️ 로 플래그된 6개 — pm-lead가 사용자와 확정 필요:
+`design.md` ⚠️ 9건 → ✅ 결정 완료. 상세는 `design.md`의 "✅ pm-lead 결정 사항" 표 참조. 요약:
 
-1. **"그냥 구경만 할게요" 게스트 모드** — Lovable login.tsx에 존재하나 spec에 없음. 제거 유력.
-2. **통계 칩 숫자(12,847 / 238)** — 하드코딩 더미인지 API 제공인지 불명.
-3. **"카카오로 영혼 등록하기" 버튼 문구** — 카카오 브랜드 가이드 공식 문구("카카오로 시작하기" 등)와 맞는지 검토.
-4. **카카오 inline SVG 아이콘** — 공식 Kakao 리소스로 교체 필요 여부.
-5. **라이트 테마** — 다크 전용 확정인지 추후 ADR 필요.
-6. **로딩 상태 디자인** — login.tsx에 로딩 UI 부재. LoginScreen의 `LoadingIndicator` placeholder 유지.
+1. **"그냥 구경만 할게요" 게스트 모드** — ❌ **제거**. Lovable에서도 삭제됨.
+2. **통계 칩 숫자(12,847 / 238)** — ❌ **제거**. Lovable에서도 삭제됨.
+3. **카카오 버튼 문구** — ✅ **"카카오로 시작하기"** (공식 가이드 준수).
+4. **카카오 inline SVG 아이콘** — ❌ **제거** (텍스트 only, 상표 권리 회피).
+5. **라이트 테마** — ✅ **dark-first 단일 테마 확정** (이미 colors.md §0).
+6. **로딩 상태 디자인** — ✅ **현재 placeholder 유지** (검정 30% 오버레이 + `CircularProgressIndicator`). 정식 시안은 추후.
+7. **부유 입자 / 외곽 회전 링** — ❌ **제거**. Lovable에서도 삭제됨. 불꽃 관련 애니메이션(`pulse-fire`/`wiggle`/`slide-up`)은 유지.
+8. **"SOUL CONTRACT" 영문 뱃지** — ✅ 현재 디자인 유지.
+9. **디자이너 시각 검증 6건** (colors.md §5) — ✅ mobile-dev 추정값 그대로 채택. 추후 미세 조정 시 별도 ADR.
+
+> **모바일 LoginScreen.kt 반영 완료 (2026-05-11, 커밋 `fb68069` + `d7529cc`).** Lovable과 모바일 화면이 본 결정 표대로 동기화된 상태.
 
 ## 미해결 이슈
 
@@ -102,9 +113,13 @@ Sprint 0 `foundation`의 스텁(`userId=1L` 고정)을 실제 Kakao OAuth 연동
 - [ ] **Kakao 개발자 콘솔 `account_phone_number` scope 승인** (사용자 action, ADR-0008). 승인 전에는 `phone_verified=false` 케이스만 end-to-end 검증 가능.
 - [ ] **Docker 기반 통합 테스트 수동 실행**: Docker Desktop 실행 후 `./gradlew :app:test --tests "*AuthKakaoIntegrationTest"`로 WireMock+Testcontainers 5케이스 검증.
 - [ ] **실 단말 E2E smoke (Android+iOS)**: NATIVE APP KEY 기입 완료. 서버 8080에 띄우고 Android 에뮬레이터/실기기 + iOS Simulator/Device에서 카카오 로그인 → JWT 발급 end-to-end. 카카오톡 앱-간 인증 + 웹 fallback 둘 다.
+- [ ] **LoginScreen 시각 검증** (2026-05-11 디자인 반영 후 신규): Android 에뮬레이터 + iOS Simulator에서 직접 확인. 특히 "영혼" brush 텍스트 / 🔥 wiggle / 스탬프 pulse-fire / 글로우·블롭 톤 / 노치 safeDrawing.
 - [ ] **iOS SPM 카카오 SDK 버전 pin 적정성 확인**: `XCRemoteSwiftPackageReference`의 `requirement` 설정(`upToNextMajor` 등) 명시 여부 점검.
-- [ ] **design.md 2차 반영**: LoginScreen placeholder를 Lovable 토큰/로고/그라데이션으로 교체 — 별도 PR.
 - [ ] **iOS Keychain 실기기 smoke**: `SecItemAdd/Copy` roundtrip 수동 확인.
+- [ ] **LoginScreen Blur 미적용** (2026-05-11 신규): Lovable의 `blur-3xl`(48px) 등가가 Compose에 없어 alpha만으로 근사. 시각 차이 크면 `graphicsLayer { renderEffect = BlurEffect(...) }` 도입(Android API 31+ / KMP 호환성 검증 필요).
+- [ ] **Material Icons Extended deprecation** (2026-05-11 신규): `compose.materialIconsExtended` 1.7.3 핀에 deprecation 경고. Material Symbols(vector resources) 마이그레이션 ADR 후보.
+- [ ] **Glow shadow / 외광 효과** (2026-05-11 신규): tokens.md §3 `--shadow-glow`(0 0 30px primary 20%)는 Compose 기본 `shadow()`로 표현 어려움. Canvas glow 별도 작업 후보.
+- [ ] **카카오 버튼 ripple 색** (2026-05-11 신규): 현재 Surface 기본 ripple 사용. design.md의 `BrandColors.KakaoYellowPressed` ripple 매핑은 디자이너 확인 후 별도 작업.
 - [ ] **동시성 보호**: 같은 `kakao_id` 동시 로그인 시 UNIQUE 위반 재시도 로직 없음 (MVP 현실성 낮음, 향후 TODO).
 - [ ] **Refresh Token Rotation**: 로그인 시마다 새 refresh 발급되지만 옛 것 무효화 없음 — ADR-0009(예정)에서 결정.
 - [ ] **별건: `application.yml:60` Swagger UI path 한글자음 'ㅠ' 오타** — Swagger UI 접근 안 될 가능성. 별도 정정.
