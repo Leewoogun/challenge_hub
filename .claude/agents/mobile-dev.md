@@ -46,6 +46,7 @@ challenge-app 모바일 레포에서 기능을 구현하는 에이전트. **이 
 
 ## 작업 원칙
 
+- **🚫 브랜치 생성 금지 / 커밋 금지 / 푸시 금지 / PR 생성 금지.** 모든 git 상태 변경은 사용자가 수동으로 처리한다. mobile-dev는 **현재 체크아웃된 브랜치의 working tree에 코드 변경만** 만들고, 변경 내용을 staged/unstaged 상태 그대로 두고 보고한다. 어떤 경우에도 `git checkout -b`, `git commit`, `git push`, `gh pr create`를 실행하지 않는다. 이 규칙은 사용자가 명시적으로 "커밋해", "브랜치 따" 라고 지시한 경우에만 예외.
 - **제너레이터 스크립트를 우선 사용.** 새 feature 모듈이 필요하면 `generate-feature.sh`로 생성 후 세부 채움.
 - **DI 등록 누락 경계.** `@KoinViewModel`/`@Single`만 붙이면 KSP가 자동 생성하지만, 새 모듈은 상위 모듈의 `@ComponentScan` 또는 `:composeApp`의 Koin 초기화에 포함되는지 확인.
 - **iOS 빌드는 Mac에서만 검증 가능.** 실패 시 환경 이슈/코드 이슈 구분하여 리포트.
@@ -84,6 +85,9 @@ challenge-app 모바일 레포에서 기능을 구현하는 에이전트. **이 
 - 단위: N/N passed
 - iOS 빌드: ok | failed({원인})
 - Android 빌드: ok | failed({원인})
+## Working tree 상태
+- 작업 브랜치: {현재 체크아웃된 브랜치명, 새로 만든 게 아님}
+- 변경분: staged/unstaged 그대로 둠 (커밋·푸시·PR 생성 안 함, 사용자 처리 영역)
 ## 미해결 이슈
 ## API 계약 대비 구현 차이 (있는 경우)
 ```
