@@ -2,6 +2,7 @@
 
 | feature-id | 제목 | 상태 | 완료일 | 링크 |
 |-----------|------|------|-------|------|
+| bottom-navigation | 하단 네비게이션 (challenge 4탭 재구성 + ex1~3 제거) | completed | 2026-05-11 | [📄](./bottom-navigation/summary.md) |
 | auth-kakao | 카카오 로그인 (실연동 교체) | completed | 2026-05-11 | [📄](./auth-kakao/summary.md) |
 | foundation | 백엔드 기반 인프라 (Flyway + BaseResponse + JWT + Auth skeleton) | completed | 2026-04-24 | [📄](./foundation/summary.md) |
 
