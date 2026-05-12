@@ -78,7 +78,7 @@ Compose 매핑 제안: `:core:designsystem`에 `ChallengeShapes(small=8.dp, medi
 
 | Lovable 클래스 | px | lineHeight | 모바일 슬롯 (light/medium/bold) | 비고 |
 |---|---|---|---|---|
-| `text-[10px]` (커스텀) | 10 | 14 | `medium10` | Tailwind 비표준. BottomBar 라벨 전용으로 신설(2026-05-12). 현재 `medium10`만 필요해 단일 슬롯(`bold48` 패턴). `light10`/`bold10`은 신규 사용처 발생 시 추가. |
+| `text-[10px]` (커스텀) | 10 | 14 | `medium10` (+ 후보 `light10`/`bold10`) | Tailwind 비표준. **2026-05-12 Lovable 전수 점검 결과**: 총 21개 사용처(login·index·mypage·notifications·ranking·challenge-detail·challenge-new + BottomNav·ChallengeCard). weight별 분포 — `font-medium` 1건(BottomNav, ✅ 모바일 `medium10` 적용 완료) · `font-bold` 1건(login `text-[10px] font-bold tracking-widest uppercase` "한 번 서명하면 무를 수 없음" — bold10 슬롯 후보, **현재 모바일 LabeledDivider 기본 `bold12` 사용 — 정합 후보**) · `font-semibold` 4건(ChallengeCard×2/challenge-detail×2 status 뱃지 — §5.3에 따라 Medium 매핑 → `medium10`) · weight 미지정(=`font-normal`) 15건(index 통계/mypage 캘린더·desc/notifications 시간/ranking 캡션/challenge-detail "내기"·"서명"/challenge-new SOUL CONTRACT/login 약관 풋터 — §5.3에 따라 Light 매핑 → `light10` 후보, **현재 모바일 FooterAgreementText `light12` 사용 — 정합 후보**). 본 슬롯은 BottomBar 라벨용으로 신설됐으나, `light10`/`bold10`은 후속 feature 진입 시 추가 필요. |
 | `text-xs` | 12 | 16 | `light12` / `medium12` / `bold12` | Tailwind 기본 |
 | `text-sm` | 14 | 20 | `light14` / `medium14` / `bold14` | Tailwind 기본. 이전 22 → 20 정합 |
 | `text-base` | 16 | 24 | `light16` / `medium16` / `bold16` | Tailwind 기본 |
@@ -88,6 +88,8 @@ Compose 매핑 제안: `:core:designsystem`에 `ChallengeShapes(small=8.dp, medi
 | `text-2xl` | 24 | 32 | `light24` / `medium24` / `bold24` | Tailwind 기본 |
 | `text-3xl` | 30 | 36 | `light30` / `medium30` / `bold30` | Tailwind 기본 |
 | `text-5xl` | 48 | 48 | `bold48` | Lovable `leading-none` 의도 반영 (size=lineHeight) |
+
+> **10sp 슬롯 정책 (2026-05-12)**: 본 슬롯은 bottom-navigation feature를 위해 `medium10` 단일로 신설됐으나, Lovable 전수 점검 결과 `text-[10px]`은 9개 route/component에 걸쳐 21회 사용된다. **향후 어떤 feature에서든 10sp 라벨이 등장하면 inline `TextStyle`을 만들지 말고 본 슬롯(`light10`/`medium10`/`bold10`)을 사용한다.** `light10`/`bold10`은 첫 사용처가 PR로 들어오는 시점에 `medium10`과 동일 패턴(`baseStyle.copy(fontSize = 10.sp, lineHeight = 14.sp, fontWeight = ...)`)으로 추가한다. weight별 매핑은 §5.3 정책을 그대로 따른다 (semibold→Medium, normal→Light, bold→Bold).
 
 ### 5.3 fontWeight 매핑 정책
 
@@ -167,3 +169,4 @@ Compose 매핑 제안: `ChallengeSpacing(xs=4, sm=8, md=12, lg=16, xl=24, xxl=32
 | 2026-04-30 | 컬러 섹션을 colors.md 링크로 단순화. Lovable 기준 통합 1차 반영. | design-bridge |
 | 2026-05-04 | (1) 컬러 섹션 — `ChallengeExtendedColors` 폐지 + `ChallengeColorScheme` 단일 진입점 반영. (2) 타이포그래피 섹션 5 — Tailwind 기본 스케일과 모바일 `ChallengeTypoGraphy` 슬롯(light/medium/bold × 12/14/16/18/20/22/24/30, bold48) 매핑 표 신설. fontWeight 매핑 정책 명시(GmarketSans 3종 자산 한계). lineHeight 변경 4건(14: 22→20, 18: 26→28, 48: 60→48) 기록. 폰트 패밀리 Pretendard↔GmarketSans 불일치 §8에 ADR 후보로 등재. | design-bridge + mobile-dev |
 | 2026-05-12 | `medium10` 슬롯 신설 (BottomBar 라벨용, Lovable `text-[10px]`, lineHeight 14). bottom-navigation feature 종료 후 결정 변경(design.md ✅ #6 inline → 슬롯). `light10`/`bold10`은 사용처 발생 시 추가. | pm-lead + mobile-dev |
+| 2026-05-12 | **Lovable 전수 점검 + 10sp 슬롯 인벤토리 보강**. `text-[10px]` 21개 사용처(9개 route/component)를 §5.2 `medium10` row 비고에 weight별 분류(`font-medium` 1 / `font-bold` 1 / `font-semibold` 4 / 미지정 15)로 등재. §5.2 표 아래 "10sp 슬롯 정책" 단락 신설 — 향후 모든 10sp 라벨은 본 슬롯 사용. 정합 후보 2건 확인: LoginScreen LabeledDivider `bold12` → `bold10` / FooterAgreementText `light12` → `light10`(Lovable 일치). backlog.md에 mobile 후속 작업으로 등재. | design-bridge |
