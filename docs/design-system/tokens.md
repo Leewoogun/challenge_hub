@@ -78,6 +78,7 @@ Compose 매핑 제안: `:core:designsystem`에 `ChallengeShapes(small=8.dp, medi
 
 | Lovable 클래스 | px | lineHeight | 모바일 슬롯 (light/medium/bold) | 비고 |
 |---|---|---|---|---|
+| `text-[10px]` (커스텀) | 10 | 14 | `medium10` | Tailwind 비표준. BottomBar 라벨 전용으로 신설(2026-05-12). 현재 `medium10`만 필요해 단일 슬롯(`bold48` 패턴). `light10`/`bold10`은 신규 사용처 발생 시 추가. |
 | `text-xs` | 12 | 16 | `light12` / `medium12` / `bold12` | Tailwind 기본 |
 | `text-sm` | 14 | 20 | `light14` / `medium14` / `bold14` | Tailwind 기본. 이전 22 → 20 정합 |
 | `text-base` | 16 | 24 | `light16` / `medium16` / `bold16` | Tailwind 기본 |
@@ -165,3 +166,4 @@ Compose 매핑 제안: `ChallengeSpacing(xs=4, sm=8, md=12, lg=16, xl=24, xxl=32
 | 2026-04-24 | 최초 정리 — styles.css 스냅샷 기반 전체 토큰 카탈로그, auth-kakao feature 작업 중 추출 | design-bridge |
 | 2026-04-30 | 컬러 섹션을 colors.md 링크로 단순화. Lovable 기준 통합 1차 반영. | design-bridge |
 | 2026-05-04 | (1) 컬러 섹션 — `ChallengeExtendedColors` 폐지 + `ChallengeColorScheme` 단일 진입점 반영. (2) 타이포그래피 섹션 5 — Tailwind 기본 스케일과 모바일 `ChallengeTypoGraphy` 슬롯(light/medium/bold × 12/14/16/18/20/22/24/30, bold48) 매핑 표 신설. fontWeight 매핑 정책 명시(GmarketSans 3종 자산 한계). lineHeight 변경 4건(14: 22→20, 18: 26→28, 48: 60→48) 기록. 폰트 패밀리 Pretendard↔GmarketSans 불일치 §8에 ADR 후보로 등재. | design-bridge + mobile-dev |
+| 2026-05-12 | `medium10` 슬롯 신설 (BottomBar 라벨용, Lovable `text-[10px]`, lineHeight 14). bottom-navigation feature 종료 후 결정 변경(design.md ✅ #6 inline → 슬롯). `light10`/`bold10`은 사용처 발생 시 추가. | pm-lead + mobile-dev |

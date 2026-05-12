@@ -69,7 +69,7 @@ Lovable `BottomNav.tsx` (4탭 / lucide 아이콘 / `bg-card/95 backdrop-blur-xl 
 | 3 | Placeholder 디테일 | **텍스트만** — `PlaceholderScreen(title, subtitle)` 재사용. |
 | 4 | BottomBar 토큰화 | **`:feature:main` 인라인 유지** — 재사용 0, 추상화 비용 절약. |
 | 5 | backdrop-blur 근사 | **alpha 95%만** — KMP 공통 API 한계. blur 자체 미적용. |
-| 6 | 10.sp 라벨 | **inline `TextStyle`** — typography 슬롯 신설 안 함. |
+| 6 | 10.sp 라벨 | **`medium10` 슬롯 신설** (2026-05-12 결정 변경. 당초 inline TextStyle이었으나 디자인시스템 일관성 위해 슬롯화). `:core:designsystem/ChallengeTypography.kt` + tokens.md §5.2에 추가. |
 | 7 | Active stroke | **색 분기만** — Compose `Icon` strokeWidth 런타임 제어 불가. |
 | 8 | (구현 중 결정) ripple 처리 | **`rememberRipple(...)` 폐기** → `Modifier.clickable` + Material3 `LocalIndication` 자동 ripple. `rememberRipple` deprecation→error 회피. 디자인 영향 없음. |
 

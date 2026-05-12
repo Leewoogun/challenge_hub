@@ -47,7 +47,7 @@
 | 아이콘 사이즈 | `size={22}` | `Modifier.size(22.dp)` |
 | 아이콘 strokeWidth (active) | `2.5` | ⚠️ Compose `Icon`/`ImageVector`는 strokeWidth 런타임 제어 불가 → **무시**. 굵기 차이는 색(primary vs muted)만으로 표현. 또는 lucide의 두 굵기 variant SVG를 둘 다 번들(옵션 B 시). |
 | 아이콘 strokeWidth (inactive) | `1.8` | 동상 |
-| 라벨 폰트 사이즈 | `text-[10px]` | 10.sp. 가장 가까운 슬롯은 `medium12` — ⚠️ 정확히 10.sp는 `ChallengeTypoGraphy`에 없음. **권고: inline `TextStyle(fontSize = 10.sp, fontWeight = Medium, lineHeight = 14.sp)` 직접 지정 + tokens.md에 `medium10` 슬롯 신설 후보 등재.** |
+| 라벨 폰트 사이즈 | `text-[10px]` | 10.sp. **2026-05-12 결정 변경: `ChallengeTheme.typography.medium10` 슬롯 신설하여 사용** (lineHeight 14, FontWeight.Medium). tokens.md §5.2에도 row 추가됨. |
 | 라벨 폰트 굵기 | `font-medium` (500) | `FontWeight.Medium` → GmarketSans Medium (tokens.md §5.3) |
 | 아이콘-라벨 간격 | `gap-0.5` (2px) | `Modifier.padding(top = 2.dp)` 또는 `Arrangement.spacedBy(2.dp)` |
 | 탭 좌우 패딩 | `px-3` (12px) | `PaddingValues(horizontal = 12.dp)` |
@@ -166,7 +166,7 @@ design-bridge 1차 권고 7건 전부 채택. mobile-dev는 본 표대로 구현
 | 3 | **Placeholder 디테일** | **(가) 텍스트만** ("준비 중" + 화면명) | 후속 feature가 곧 채움 |
 | 4 | **BottomBar 토큰화 위치** | **A: `:feature:main` 인라인 유지** | 재사용 0, 추상화 비용 절약 |
 | 5 | **`backdrop-blur` 근사** | **(i) alpha 95%만** | KMP 공통 API 한계. platform actual blur는 백로그 등재 |
-| 6 | **10.sp 라벨 처리** | **(i) inline `TextStyle`** | `medium10` 슬롯 신설은 백로그(다른 사용처 누적 시) |
+| 6 | **10.sp 라벨 처리** | **(ii) `medium10` 슬롯 신설** (2026-05-12 결정 변경) | tokens.md에 row 추가, `:core:designsystem`의 `ChallengeTypography.kt`에 `medium10` 신설. `light10`/`bold10`은 사용처 발생 시 추가. |
 | 7 | **Active stroke 굵기** | **(i) 색 분기만** (`primary` vs `onSurfaceVariant`) | Compose `Icon` strokeWidth 런타임 제어 불가 |
 
 > **모바일과 Lovable 동기화 원칙(메모리 룰)에 따라**, 본 결정으로 Lovable `BottomNav.tsx` 변경은 발생하지 않음(이미 Lovable이 진실 소스이고, 모바일이 그를 따라가는 방향). Lovable에 stroke 굵기 2.5는 그대로 유지(Compose 한계로 모바일만 색 분기). 디자이너 검토 후 lucide 변환이 필요해지면 별도 ADR.
@@ -190,3 +190,4 @@ design-bridge 1차 권고 7건 전부 채택. mobile-dev는 본 표대로 구현
 | 일시 | 변경 | 작성자 |
 |------|------|-------|
 | 2026-05-08 | 최초 작성 — Lovable `BottomNav.tsx` 분석 + 4 placeholder 화면 톤 결정. spec.md "사용자 결정 권한" 4항목을 7건으로 구체화. 아이콘 매핑 1차안 옵션 A(`materialIconsExtended`) 권고. BottomBar 토큰화는 `:feature:main` 인라인 권고. | design-bridge |
+| 2026-05-12 | ✅ #6 (10.sp 라벨 처리) 결정 변경: **(i) inline TextStyle → (ii) `medium10` 슬롯 신설**. tokens.md §5.2에 row 추가, `:core:designsystem/ChallengeTypography.kt`에 슬롯 신설. mobile-dev가 `ChallengeBottomBar.kt`의 inline `BottomNavLabelStyle` 제거하고 `ChallengeTheme.typography.medium10` 사용. | pm-lead |
