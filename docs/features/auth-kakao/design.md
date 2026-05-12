@@ -35,7 +35,7 @@
   - 카드 칩: `colorScheme.surface` (`#2F303A`) + `colorScheme.outline` (`#43444E`)
   - 카카오 버튼: `BrandColors.KakaoYellow` / `BrandColors.KakaoLabel` ✅ 토큰화 완료
   - Radius: `radius.xl` (16dp, 버튼 full) / `radius.full` (스탬프, 뱃지)
-  - Typo: Hero `text-5xl font-black`, sub `text-[13px]`/`text-sm font-bold`, badges `text-[11px] font-semibold`, 풋터 `text-[10px]`
+  - Typo: Hero `text-5xl font-black` (→ `bold48`), sub `text-[13px]`/`text-sm font-bold` (→ `bold14`), badges `text-[11px] font-semibold` (→ `medium12` 근사), **LabeledDivider "한 번 서명하면 무를 수 없음" `text-[10px] font-bold` (→ `bold10` 슬롯, 2026-05-12 tokens.md §5.2 추가 후보)**, **풋터 약관 텍스트 `text-[10px]` weight-미지정 (→ `light10` 슬롯, 2026-05-12 tokens.md §5.2 추가 후보)**. ⚠️ 현재 모바일 LoginScreen은 LabeledDivider 기본 `bold12` / FooterAgreementText `light12`로 12sp 사용 — Lovable 10sp와 불일치. tokens.md §5.2 정책에 따라 `bold10`/`light10` 슬롯 신설 + 호출부 정합 권고 (backlog.md mobile 항목).
 - **상태**:
   - `default`: 위 설명 그대로.
   - `loading`: "카카오로 시작하기" 버튼 tap 이후 Kakao SDK 호출 및 서버 응답 대기. **결정 (2026-05-08)**: 정식 시안 없이 화면 중앙 검정 30% 오버레이 + `CircularProgressIndicator` placeholder 유지. 추후 디자이너 시안 나오면 재검토.
@@ -148,3 +148,4 @@ h-13 w-full rounded-xl px-8 text-base   ← size=full
 | 2026-04-24 | 최초 작성 — login.tsx 스냅샷 기반. tokens.md 신규 생성과 동시 작업. auth-kakao feature의 UI 범위 전체 커버. | design-bridge |
 | 2026-04-24 | mobile-dev의 Lovable 통합 결과 반영. 카카오 컬러 `BrandColors` 토큰화 완료, LoginScreen 컬러 매핑을 실제 적용 토큰명(`MaterialTheme.colorScheme.*`, `LocalChallengeBrushes.current.fire`, `BrandColors.KakaoYellow`)으로 갱신. 디자이너 검토 5건 colors.md §5 참조 링크 추가. | design-bridge |
 | 2026-05-08 | pm-lead 9건 결정 반영. "그냥 구경만 할게요"·통계 칩·카카오 SVG 아이콘·외곽 링 회전·부유 입자 5개 모두 **제거**. 카카오 버튼 문구 "카카오로 시작하기"로 통일(공식 가이드 준수). Lovable `login.tsx` 동기 갱신. 모바일 `LoginScreen.kt` 2차 PR에서 본 결정 반영 예정. 디자이너 시각 검증 6건은 추정값 그대로 채택. | pm-lead |
+| 2026-05-12 | tokens.md §5.2 `medium10` 슬롯 신설 후속 — "토큰 참조"의 10sp 라벨 매핑을 정리. LabeledDivider "한 번 서명하면 무를 수 없음" `text-[10px] font-bold` → `bold10` 슬롯 후보, FooterAgreementText 약관 풋터 `text-[10px]` weight-미지정 → `light10` 슬롯 후보로 명시. 현재 모바일 호출부는 `bold12`/`light12`로 12sp 사용 중이라 10sp 정합 작업이 별도 후속(backlog.md mobile 항목 등재). | design-bridge |

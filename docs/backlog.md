@@ -4,7 +4,7 @@
 >
 > **자동 갱신**: pm-lead가 `report-and-document` 스킬로 feature를 마무리할 때마다 summary.md의 미해결 이슈를 본 백로그에 자동 추가. 임의 시점 재정리는 "백로그 정리해줘" 한 마디로 pm-lead에게 요청.
 
-- **마지막 갱신**: 2026-05-11 (bottom-navigation feature 완료 → INDEX `completed`, ADR-0003 ex1~3 제거 해소)
+- **마지막 갱신**: 2026-05-12 (design-bridge — Lovable `text-[10px]` 전수 점검 + tokens.md §5.2 인벤토리 보강, LoginScreen 10sp 라벨 정합 후속 등재)
 - **우선순위 기호**: 🔴 긴급(블로커) / 🟡 중요 / 🟢 일반 / 🔵 대기(외부 의존)
 - **담당 약어**: pm / mobile / backend / design / user(사용자가 직접 처리)
 
@@ -41,6 +41,7 @@ _없음 — 다음 sprint 시작에 직접적 블로커는 없음._
 | 카카오 버튼 ripple 색 (`KakaoYellowPressed`) | [auth-kakao/design.md](./features/auth-kakao/design.md) | mobile + design | 현재 Surface 기본 ripple. 디자이너 확인 후 `BrandColors.KakaoYellowPressed` ripple 매핑 작업. |
 | `./scripts/generate-feature.sh` 패키지 경로 버그 (line 39 `SRC_DIR=com.lwg.base/...`) | [bottom-navigation/summary.md](./features/bottom-navigation/summary.md) | mobile | 실제 패키지는 `com.lwg.challenge`인데 스크립트가 `com.lwg.base`로 생성. 향후 신규 feature 작업 차단. 본 작업은 ex1 패턴 따라 수동 생성으로 우회. 즉시 가능한 위생 작업. |
 | `:feature:login` Preview annotation deprecation 경고 다수 | [bottom-navigation/summary.md](./features/bottom-navigation/summary.md) | mobile | bottom-navigation 빌드 중 발견. `@Preview` 사용처 일괄 마이그레이션 (Material3 / KMP Preview annotation 변경). 정리 후보, 즉시 가능. |
+| LoginScreen 10sp 라벨 `bold10`/`light10` 슬롯 정합 | [tokens.md §5.2](./design-system/tokens.md) · [auth-kakao/design.md](./features/auth-kakao/design.md) | mobile + design | 2026-05-12 design-bridge Lovable 전수 점검 결과. Lovable `login.tsx`: LabeledDivider "한 번 서명하면 무를 수 없음" `text-[10px] font-bold`(10sp) / 약관 풋터 `text-[10px]`(10sp, weight 미지정→Light). 현 모바일은 `bold12`/`light12`(12sp). (1) `:core:designsystem/ChallengeTypography.kt`에 `bold10`/`light10` 슬롯 추가(`medium10`과 동일 패턴, lineHeight 14). (2) LoginButtonSection의 LabeledDivider `textStyle = typography.bold10`, FooterAgreementText `style = typography.light10`로 교체. ranking/index/notifications/challenge-detail/challenge-new/ChallengeCard 등 다른 화면은 후속 feature 진입 시 자연 정합(현재는 모바일 placeholder). |
 | 동시 로그인 시 `kakao_id` UNIQUE 충돌 재시도 로직 | auth-kakao/backend-report.md | backend | MVP 현실성 낮음. 향후 보강. |
 | Refresh Token Rotation (옛 refresh 무효화) | auth-kakao | backend + pm | ADR-0009(예정) 결정 후 작업. |
 | `:feature:home` Movie 예제 → challenge 홈으로 교체 | [ADR-0003](./decisions/0003-mobile-template-init.md) | mobile | 후속 feature `home-feed`에서 처리. bottom-navigation 완료 후 자연스러운 다음 단계. |
@@ -85,6 +86,7 @@ _없음 — 다음 sprint 시작에 직접적 블로커는 없음._
 - 카카오 버튼 ripple 색 매핑
 - `generate-feature.sh` 패키지 경로 버그 (즉시 가능)
 - `:feature:login` `@Preview` deprecation 경고 정리 (즉시 가능)
+- LoginScreen 10sp 라벨 `bold10`/`light10` 슬롯 정합 (tokens.md §5.2 후속, 즉시 가능)
 
 ### 백엔드 (backend)
 - 동시성 보호
