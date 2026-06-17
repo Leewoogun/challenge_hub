@@ -26,10 +26,11 @@
     ],
     "recent_changes": [
       "2026-04-23: 로그인 단계의 SMS 인증만 제거 (카카오 로그인만으로 식별). 전화번호 관련 기능(users.phone_number/phone_verified 컬럼, /friends/sync-contacts, 4.3 전화번호 기반 친구 매칭, 전화번호 SHA-256 해시 저장 정책)은 유지. 제거된 항목: /api/v1/auth/phone/send, /api/v1/auth/phone/verify, Redis phone:verify 캐시.",
-      "2026-04-23: 8개 ADR 전부 accepted (0003은 in-progress). 핵심 결정: Flyway(0001), BaseResponse 패턴 + 항상 HTTP 200 + code 기반 에러(0002), Lovable 참조 전용(0004), iOS+Android 동시 MVP(0005), STT 클라이언트 SDK + 정확도 모니터링(0006), local→AWS phased(0007), Kakao account_phone_number scope(0008)."
+      "2026-04-23: 8개 ADR 전부 accepted (0003은 in-progress). 핵심 결정: Flyway(0001), BaseResponse 패턴 + 항상 HTTP 200 + code 기반 에러(0002), Lovable 참조 전용(0004), iOS+Android 동시 MVP(0005), STT 클라이언트 SDK + 정확도 모니터링(0006), local→AWS phased(0007), Kakao account_phone_number scope(0008).",
+      "2026-05-28: ADR-0009 Refresh Token Rotation accepted. users 테이블에 refresh_token_hash VARCHAR(64) + refresh_token_issued_at TIMESTAMP 추가 (V3). POST /api/v1/auth/refresh 응답에 data.refreshToken 신규 필드 — 매 refresh 마다 access+refresh 둘 다 발급, sha256 hash로 옛 refresh 즉시 무효화. ADR-0002의 code=401 의미 세분화: 일반 API 401(=access 만료, Ktor Auth 자동 갱신) vs /auth/refresh 401(=refresh 만료/hash 불일치, 강제 재로그인). 모바일은 Ktor Auth(bearer) 플러그인으로 401 처리 일원화. 1기기 1세션 자연 강제. logout 엔드포인트는 hash NULL화 자리만 마련 (별도 feature)."
     ],
     "api_convention": {
-      "error_model": "Always HTTP 200. Body follows BaseResponse pattern. code=200 success, code=700/701/702/703/705 business errors by UI treatment, code=401 token expired.",
+      "error_model": "Always HTTP 200. Body follows BaseResponse pattern. code=200 success, code=700/701/702/703/705 business errors by UI treatment, code=401 token expired (일반 API=access 만료 자동 갱신, /auth/refresh=refresh 만료 강제 재로그인 — ADR-0009).",
       "base_response_source": "/Users/hwamulman/hwamulman-workspace/CarOwnerRenew/remote/model/src/main/kotlin/ktc/cargo/driver/remote/model/base/BaseResponse.kt",
       "api_code_source": "/Users/hwamulman/hwamulman-workspace/CarOwnerRenew/remote/datasource/src/main/kotlin/ktc/cargo/driver/remote/datasource/apiResult/ApiCode.kt",
       "server_dto_pattern": "data class XxxResponse(val data: XxxData) : BaseResponse()",
@@ -64,7 +65,7 @@
       ":domain:model", ":domain:repository", ":domain:usecase",
       ":data:repositoryImpl",
       ":remote:network", ":remote:api", ":remote:model", ":remote:mapper",
-      ":feature:main", ":feature:home", ":feature:ex1", ":feature:ex2", ":feature:ex3"
+      ":feature:main", ":feature:home", ":feature:login", ":feature:friends", ":feature:ranking", ":feature:mypage"
     ],
     "own_harness": {
       "claude_dir": "/Users/hwamulman/woogunProject/challenge/challenge-app/.claude",
@@ -75,9 +76,9 @@
     "blockers": [
       "✅ 2026-04-23 완료: 패키지 com.lwg.challenge, 프로젝트명 Challenge로 리네임 적용됨.",
       "⚠️ 기본 API base URL이 TMDB — challenge 서버 URL로 교체 필요 (remote/network/build.gradle.kts + local.properties의 tmdb_token). ADR-0007 환경 분리 결정과 연계.",
-      "⚠️ :feature:ex1/ex2/ex3 예제 모듈 유지 여부 결정 필요 (제거 권장).",
-      "⚠️ :feature:home이 여전히 Movie 예제 — challenge 도메인으로 교체 필요 (Sprint 1~2).",
-      "⚠️ CLAUDE.md의 모듈 구조가 README와 불일치 — :core:domain/network/data 라고 적혀 있으나 실제는 :domain:*/:remote:*/:data:* 구조. 정정 필요."
+      "✅ 2026-05-11 완료: :feature:ex1/ex2/ex3 모듈 통째 삭제 (bottom-navigation feature).",
+      "✅ 2026-05-25 완료: :feature:home placeholder → challenge 도메인 본 UI 교체 (home-feed feature, HomeScreen + StatsBar + ChallengeCard + HomeEmptyState).",
+      "⚠️ CLAUDE.md의 모듈 구조가 README와 불일치 — :core:domain/network/data 라고 적혀 있으나 실제는 :domain:*/:remote:*/:data:* 구조. 정정 필요. (ADR-0003 마지막 잔여)"
     ]
   },
   "backend": {

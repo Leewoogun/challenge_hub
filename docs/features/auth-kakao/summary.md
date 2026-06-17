@@ -121,7 +121,7 @@ Sprint 0 `foundation`의 스텁(`userId=1L` 고정)을 실제 Kakao OAuth 연동
 - [ ] **Glow shadow / 외광 효과** (2026-05-11 신규): tokens.md §3 `--shadow-glow`(0 0 30px primary 20%)는 Compose 기본 `shadow()`로 표현 어려움. Canvas glow 별도 작업 후보.
 - [ ] **카카오 버튼 ripple 색** (2026-05-11 신규): 현재 Surface 기본 ripple 사용. design.md의 `BrandColors.KakaoYellowPressed` ripple 매핑은 디자이너 확인 후 별도 작업.
 - [ ] **동시성 보호**: 같은 `kakao_id` 동시 로그인 시 UNIQUE 위반 재시도 로직 없음 (MVP 현실성 낮음, 향후 TODO).
-- [ ] **Refresh Token Rotation**: 로그인 시마다 새 refresh 발급되지만 옛 것 무효화 없음 — ADR-0009(예정)에서 결정.
+- [x] **Refresh Token Rotation** ✅ 2026-05-28 해소 — [ADR-0009](../../decisions/0009-refresh-token-rotation.md) accepted, [auth-refresh-rotation](../auth-refresh-rotation/summary.md) 구현 완료.
 - [ ] **별건: `application.yml:60` Swagger UI path 한글자음 'ㅠ' 오타** — Swagger UI 접근 안 될 가능성. 별도 정정.
 - [ ] **별건: `:feature:login:check` detekt config 부재** (`/config/detekt/detekt.yml` 없음) — 인프라 티켓에서 처리.
 
@@ -134,4 +134,4 @@ Sprint 0 `foundation`의 스텁(`userId=1L` 고정)을 실제 Kakao OAuth 연동
 - [backend-report.md](./backend-report.md)
 - [mobile-report.md](./mobile-report.md)
 - [tokens.md](../../design-system/tokens.md)
-- ADR-0001 (Flyway), ADR-0002 (BaseResponse), ADR-0007 (환경 분리), ADR-0008 (Kakao scope)
+- ADR-0001 (Flyway), ADR-0002 (BaseResponse), ADR-0007 (환경 분리), ADR-0008 (Kakao scope), [ADR-0009](../../decisions/0009-refresh-token-rotation.md) (Refresh Token Rotation — 본 summary의 "Refresh Token Rotation" 미해결 이슈 해소)
