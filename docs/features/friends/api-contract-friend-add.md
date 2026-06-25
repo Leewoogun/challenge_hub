@@ -115,7 +115,7 @@ enum class Relation { NONE, REQUEST_SENT, REQUEST_RECEIVED, FRIEND, REJECTED }
 | `REQUEST_SENT` | **non-null** — 내가 보낸 PENDING row id (취소 호출에 사용) |
 | `REQUEST_RECEIVED` | **non-null** — 상대가 보낸 PENDING row id (수락/거절 호출에 사용) |
 | `FRIEND` | null (ACCEPTED row의 id는 별도 필요 시 `/friends` 응답에서) |
-| `REJECTED` | null (재요청은 새 row 생성) |
+| `REJECTED` | null (기존 REJECTED row를 보유하지만 PENDING이 아니므로 null. 재요청 시 §2에서 해당 row를 PENDING으로 UPDATE.) |
 
 ### 에러 Response (HTTP 200, body code로 분기)
 | code | 상황 | 예시 메시지 | 모바일 처리 |

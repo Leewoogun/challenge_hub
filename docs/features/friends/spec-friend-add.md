@@ -171,7 +171,7 @@ FriendService
 `AuthKakaoIntegrationTest` 패턴 따라 `FriendIntegrationTest` 작성:
 - 검색 시나리오: 본인 제외, BLOCKED 제외(현재 없음), 동명이인 다수 매칭, relation 모든 케이스 (NONE/SENT/RECEIVED/FRIEND/REJECTED)
 - 요청 → 수락 → 친구 목록 갱신
-- 요청 → 거절 → 다시 요청 가능
+- 요청 → 거절 → 다시 요청 시 동일 row UPDATE 확인 (행 수 불변, created_at 보존)
 - 요청 취소 → 재요청 가능
 - 동시 요청 race (사전 검사 동작 확인)
 - 미인증 (401)
