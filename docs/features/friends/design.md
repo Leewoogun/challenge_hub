@@ -293,7 +293,7 @@ modified:   src/routes/friends.tsx
 
 | 위치 | Lovable (Tailwind v4) | Compose / `ChallengeTheme` |
 |---|---|---|
-| TopBar 라벨 "친구" | `text-xl font-extrabold` | `typography.bold20` + `colorScheme.onBackground` |
+| TopBar 라벨 "친구" | `text-xl font-extrabold` | `typography.bold18` + `colorScheme.onBackground` |
 | 섹션 헤더 ("받은 요청 N건", "친구 N명") | `text-sm font-bold` | `typography.bold14` + `colorScheme.onBackground` |
 | "N건" 강조 | `text-primary` | `colorScheme.primary` |
 | ActionRow 컨테이너 | `grid grid-cols-2 gap-2` | `Row(Arrangement.spacedBy(8.dp))` 또는 `Row` + 두 Button `Modifier.weight(1f)` |
@@ -376,7 +376,7 @@ modified:   src/routes/friends.tsx
 | TopBar 컨테이너 | `bg-background/80 backdrop-blur-xl` | `Surface(color = colorScheme.background.copy(alpha = 0.80f))` (1차 1단계 §1과 동일 정책 — alpha 근사) |
 | TopBar 높이 | `h-10` 버튼 + `py-2.5` input + safe-area | 56.dp 권장 (`FriendsTopBar`와 동일) |
 | 뒤로가기 버튼 | `h-10 w-10 -ml-2 rounded-xl text-foreground hover:bg-accent` | `IconButton(modifier = Modifier.size(40.dp).offset(x = -8.dp))` + `Icons.AutoMirrored.Filled.ArrowBack` 20.dp + `colorScheme.onBackground` |
-| 입력 박스 | `bg-secondary rounded-xl pl-10 pr-9 py-2.5 text-sm` + focus `ring-2 ring-primary` | `TextField` 또는 `BasicTextField` + `colorScheme.secondary` bg + `RoundedCornerShape(12.dp)` + `Modifier.height(40.dp)` + leading icon padding 36.dp + trailing icon padding 36.dp + `typography.medium14` 입력 텍스트 + `colorScheme.muted` placeholder + focus indicator (border 2.dp `primary`) |
+| 입력 박스 | `bg-secondary rounded-xl pl-10 pr-9 py-2.5 text-sm` + focus `ring-2 ring-primary` | `TextField` 또는 `BasicTextField` + `colorScheme.secondary` bg + `RoundedCornerShape(12.dp)` + `Modifier.height(40.dp)` + leading icon padding 36.dp + trailing icon padding 36.dp + `typography.medium14` 입력 텍스트 + `colorScheme.onSurfaceVariant` placeholder + focus indicator (border 2.dp `primary`) |
 | 입력 placeholder | `placeholder:text-muted-foreground` | `colorScheme.onSurfaceVariant` |
 | 안내 텍스트 (Idle/Empty) | `mt-16 text-center text-sm text-muted-foreground` | `Modifier.padding(top = 64.dp)` + `Arrangement.Center` + `typography.medium14` + `colorScheme.onSurfaceVariant` |
 | 결과 리스트 컨테이너 | `px-5 mt-3 space-y-2` | `LazyColumn` + `contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)` + `verticalArrangement = Arrangement.spacedBy(8.dp)` |
@@ -462,7 +462,7 @@ fun FriendsSearchTopBar(
 
 - **Colors**: `background` / `surface` / `secondary` / `secondaryForeground` / `outline` / `primary` / `onPrimary` / `onBackground` / `onSurfaceVariant`
 - **Alpha 변형**: `background.copy(alpha = 0.80f)` (TopBar backdrop-blur 근사). 신규 슬롯화 ❌ — 호출부 책임 (1차 1단계 §4와 동일 정책).
-- **Typography**: `bold20` (메인 TopBar "친구"), `bold16` (빈 상태 헤드라인 — 1차 1단계 §3.1과 동일), `bold14` (섹션 헤더 / 카드 닉네임 / 버튼 라벨), `bold12` (FRIEND 뱃지), `medium14` (검색 입력 / 안내 텍스트), `medium20` (프로필 emoji placeholder), `medium12` (빈 상태 서브라인 — 1차 1단계 §3.1과 동일).
+- **Typography**: `bold18` (메인 TopBar "친구" — 1차 1단계 §1과 동일 홈 패턴), `bold16` (빈 상태 헤드라인 — 1차 1단계 §3.1과 동일), `bold14` (섹션 헤더 / 카드 닉네임 / 버튼 라벨), `bold12` (FRIEND 뱃지), `medium14` (검색 입력 / 안내 텍스트), `medium20` (프로필 emoji placeholder), `medium12` (빈 상태 서브라인 — 1차 1단계 §3.1과 동일).
 - **Radius**:
   - 카드: `RoundedCornerShape(16.dp)` — radius-xl
   - 버튼 / 프로필 placeholder / 입력 박스 / FRIEND 뱃지 / 뒤로가기 IconButton: `RoundedCornerShape(12.dp)` — radius-lg
@@ -563,7 +563,7 @@ fun FriendsSearchTopBar(
 
 | 위치 | 슬롯 |
 |---|---|
-| 메인 TopBar "친구" | `bold20` |
+| 메인 TopBar "친구" | `bold18` |
 | 빈 상태 헤드라인 | `bold16` |
 | 빈 상태 서브라인 | `medium12` |
 | 빈 상태 CTA 라벨 | `bold14` |
@@ -613,7 +613,7 @@ fun FriendsSearchTopBar(
 ## G. mobile-dev 강조 사항 (T-M1~M6 인계 시)
 
 1. **친구 목록 1행은 `FriendListItem` 신규** — 1차 1단계 §2 입력안 `FriendCard`(전적+대결)는 본 spec 범위 밖. `FriendListItem(profileImageUrl, nickname)` 단순 시그니처만 구현.
-2. **`FriendsEmptyState` 확장**: 1차 1단계 단일 CTA → 2차 보조 CTA 추가. 기존 props에 `onClickInvite: (() -> Unit)? = null` 추가하고, null일 때는 1차 1단계 동일 시각. **1차 1단계 호출처는 영향 없음** (default null).
+2. **`FriendsEmptyState` 확장**: 1차 1단계 단일 CTA → 2차 보조 CTA 추가. 기존 props에 `onClickInvite: (() -> Unit)? = null` 추가하고, null일 때는 1차 1단계 동일 시각. **1차 1단계 호출처는 영향 없음** (default null). **주의**: Lovable preview (`src/routes/friends.tsx` 빈 상태 카드)는 2차 모드(보조 CTA 노출)만 표현하며 props 없이 inline으로 그려졌으므로 비파괴 보장은 Compose 측 의무. Lovable에서 1차 fallback 시각을 보려면 별도 mock 화면 필요.
 3. **`FriendsTopBar`는 props 0개 그대로** — 메인 화면 액션은 본문 ActionRow로 외주화. spec.md §6.4 흐름 일치.
 4. **검색 입력 debounce**는 ViewModel 책임 — `FriendsSearchTopBar`는 onQueryChange만 즉시 호출. 모바일 ViewModel에서 `flow { ... }.debounce(300.milliseconds).filter { it.length >= 2 }` 처리.
 5. **relation 5종 시각은 §B.5 표가 단일 출처** — Lovable과 본 design.md 둘 다 동일. 모바일에서 다른 시각 채택 시 Lovable + design.md 모두 갱신 (Lovable ↔ 모바일 동기 메모리 규칙).
