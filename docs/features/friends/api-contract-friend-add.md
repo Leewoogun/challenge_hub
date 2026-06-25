@@ -197,13 +197,30 @@ data class SendFriendRequestData(
 
 > 모든 비즈니스 에러를 `code: 700`(스낵바)으로 통일. 모바일은 `message`를 그대로 노출. 동시 race로 양방향 PENDING이 생기지 않도록 service에서 사전 검사 (spec §5.3).
 
+### service 처리 분기 (sendRequest)
+기존 row를 사전 조회한 뒤 다음 분기로 처리 (spec §4.3 / §5.3):
+
+| 케이스 | 처리 | 응답 |
+|---|---|---|
+| 기존 row 없음 | INSERT (status=PENDING) | 성공 `requestId` (신규 row id) |
+| 동일 방향 REJECTED row 존재 (`requester=me, receiver=target, status=REJECTED`) | 기존 row UPDATE — `status=PENDING`, `accepted_at=null`. `created_at` 유지. | 성공 `requestId` (기존 row id 재사용) |
+| 동일 방향 PENDING row 존재 | 차단 | `code: 700` "이미 요청 보냈습니다" |
+| 동일 방향 ACCEPTED row 존재 | 차단 | `code: 700` "이미 친구입니다" |
+| 반대 방향 PENDING row 존재 (`requester=target, receiver=me, status=PENDING`) | 차단 (race 안내) | `code: 700` "상대가 이미 친구 요청을 보냈어요. 확인해보세요" |
+| 반대 방향 ACCEPTED row 존재 | 차단 | `code: 700` "이미 친구입니다" |
+| `receiverId = me` | 차단 | `code: 700` "자기 자신에게는 요청할 수 없어요" |
+| `receiverId` 미존재 / INACTIVE | 차단 | `code: 700` "사용자를 찾을 수 없어요" |
+
+응답의 `requestId` 의미: 신규 INSERT는 새 PK, REJECTED UPDATE는 기존 row의 PK 재사용. 모바일은 양쪽 모두 `pendingRequestId`로 동일하게 취급.
+
 ### 모바일측 주의사항
 - 검색 결과 화면에서 낙관적 갱신 (해당 row의 relation을 `NONE`/`REJECTED` → `REQUEST_SENT`로 즉시 전환, `pendingRequestId`에 응답 값 반영). 실패 시 롤백 + 스낵바.
 
 ### 백엔드측 주의사항
-- 트랜잭션 1건: 사전 검사(역방향 PENDING / 양방향 ACCEPTED / 본인 요청) → INSERT.
-- 영향 테이블: `friendships` (INSERT 1행).
-- `UNIQUE(requester_id, receiver_id)` 제약 위반은 catch해서 `code: 700`로 변환.
+- 트랜잭션 1건: 사전 검사(위 분기) → INSERT 또는 UPDATE.
+- 영향 테이블: `friendships` (INSERT 1행 또는 UPDATE 1행).
+- `UNIQUE(requester_id, receiver_id)` 제약 위반은 catch해서 `code: 700`로 변환 — 단 정상 흐름에서는 사전 검사로 도달하지 않아야 한다 (race 백업).
+- REJECTED → PENDING UPDATE 시 `created_at`은 변경하지 않는다 (첫 요청 시각 보존).
 
 ---
 
@@ -268,9 +285,9 @@ data class AcceptFriendRequestData(
 ## 4. POST `/api/v1/friends/requests/{id}/reject`
 
 ### 설명
-받은 친구 요청을 거절. 해당 PENDING row를 `status='REJECTED'`로 UPDATE. row는 보존 (재요청 시 새 row 생성 가능 — UNIQUE는 단방향 `(requester_id, receiver_id)`라 상대가 다시 보낼 때는 동일 row가 아닌 UPDATE 경로).
+받은 친구 요청을 거절. 해당 PENDING row를 `status='REJECTED'`로 UPDATE. row는 보존.
 
-> 참고: 상대(requester)가 동일 receiver에게 재요청 시, UNIQUE 충돌이 발생하므로 service 계층에서 REJECTED row를 PENDING으로 되돌리는 처리는 별도 결정 필요 — 본 1차 범위에서는 미정의(재요청 시 `code: 700` "이미 요청 보냈습니다" 노출). 후속 작업으로 이관.
+> REJECTED 후 동일 requester의 재요청은 §2 sendRequest 흐름이 처리한다 — 기존 REJECTED row를 `status=PENDING`으로 UPDATE (`accepted_at=null`, `created_at` 유지). 후속 작업 이관 없음 (spec §4.3 / §5.3).
 
 ### 인증
 - 방식: `Bearer JWT`
@@ -526,6 +543,7 @@ data class FromUser(
 |------|------|------|-------------|
 | 200 | 성공 (`error=false`) | 200 | 정상 처리 |
 | 700 | 비즈니스 에러 — 스낵바 (검증 / 권한 외 / 상태 외 / race) | **200** | `message`를 그대로 스낵바 표시 |
+| 701 | 비즈니스 에러 — 다이얼로그 | **200** | **본 feature에서는 사용 안 함** |
 | 401 | 토큰 만료 | 401 | Ktor Auth 플러그인 자동 갱신, `/auth/refresh` 401 시 강제 재로그인 (ADR-0009) |
 | 500 | 인프라 장애 | 500 | 재시도/장애 안내 |
 
@@ -549,5 +567,6 @@ data class FromUser(
 | 일시 | 작성자 | 변경 |
 |------|--------|------|
 | 2026-06-25 | pm-lead | 초안 + 확정 (모바일/백엔드 동시 진입 전제 — spec-friend-add.md §5에서 7개 endpoint 이미 합의됨, T1으로 곧장 `confirmed` 진입) |
+| 2026-06-25 | pm-lead | REJECTED 재요청 처리 = UPDATE 결정 (옵션 🅰️). spec §4.3 + §5.3 보강. code 701 미사용 명시. (T1 fix after code quality review) |
 
 > 본 contract 확정 이후 변경은 [change-log.md](./change-log.md)와 본 섹션 양쪽에 append. 본 spec(`spec-friend-add.md`)이 친구 시스템 권위(authority) — 1차 1단계 `spec.md` / `plan.md`는 historical artifact.

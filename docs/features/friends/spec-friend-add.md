@@ -62,6 +62,8 @@ friends 1차 1단계 spec/plan에 적힌 후속 작업 가이드와 실제 백�
 
 **BLOCKED는 1차에서 미구현** — V1 스키마의 BLOCKED status는 비활성. 검색 결과에 BLOCKED 케이스는 노출되지 않음 (현재는 BLOCKED row가 생성될 경로가 없음).
 
+**REJECTED 후 재요청 처리**: REJECTED row가 있을 때 동일 requester가 동일 receiver에게 sendRequest 호출 시 — 기존 row의 `status='PENDING'`, `accepted_at=null`로 UPDATE (created_at 유지). UNIQUE 제약 호환 + UX 유지.
+
 ### 4.4 알림: in-app만 (FCM 없음)
 
 - 결정: 받는 쪽이 친구 화면 진입 시에만 친구 요청을 인지
@@ -133,8 +135,13 @@ LIMIT 20;
 
 - **친구 목록 정렬**: `ORDER BY accepted_at DESC` (최근 친구가 된 순)
 - **받은 요청 정렬**: `ORDER BY created_at DESC` (가장 최근 요청부터)
-- 친구 요청 시 `UNIQUE(requester_id, receiver_id)` 제약 위반 → BaseResponse `code: 700` 스낵바 ("이미 요청 보냈습니다")
-- 양방향 동시 요청 (A→B 동시에 B→A) race 처리: service에서 사전 검사 — 반대 방향 PENDING row 존재 시 스낵바 "상대가 이미 친구 요청을 보냈어요. 확인해보세요" + 받은 요청 화면으로 안내
+- **sendRequest 처리 분기** (기존 row 사전 확인):
+  - 없음 → INSERT (status=PENDING)
+  - 동일 방향 REJECTED 존재 → 기존 row의 `status='PENDING'`, `accepted_at=null`로 UPDATE (created_at 유지). UNIQUE 제약 호환.
+  - 동일 방향 PENDING/ACCEPTED 존재 → `code: 700` ("이미 요청 보냈습니다" / "이미 친구입니다")
+  - 반대 방향 PENDING 존재 → `code: 700` ("상대가 이미 친구 요청을 보냈어요. 확인해보세요") + 받은 요청 화면 안내
+  - 반대 방향 ACCEPTED 존재 → `code: 700` ("이미 친구입니다")
+- 양방향 동시 요청 (A→B 동시에 B→A) race 처리: 위 분기 중 "반대 방향 PENDING 존재" 케이스 — service 사전 검사로 차단.
 - 수락 시: PENDING row의 `status='ACCEPTED'`, `accepted_at=now()` UPDATE. **양방향 row 추가 생성 X**. 친구 목록 조회는 `WHERE (requester_id = me OR receiver_id = me) AND status = 'ACCEPTED'`.
 - 취소(`DELETE`) 시: PENDING row 물리 삭제 (CANCELLED status 없음). 재요청 가능.
 
@@ -367,6 +374,7 @@ class IosKakaoInviter : KakaoInviter { /* ShareApi.shared.shareCustom(...) */ }
 | 7 | 차단(BLOCKED) 미구현 | 스토커/스팸 대응 불가 | 1차에서 차단 안 만듦 (V1 BLOCKED status 비활성) | 사용자 신고 발생 시 별도 spec |
 | 8 | 낙관적 갱신 실패 → UI 롤백 | 사용자 혼란 가능 | 스낵바로 실패 사유 표시, 자동 refresh | — |
 | 9 | 카카오 콘솔 템플릿 ID 환경별 분리 안 함 | 개발/운영 메시지 디자인 동일 강제 | 1차에선 단일 템플릿 | 운영 분리 필요해지면 환경 변수로 templateId 주입 |
+| 10 | REJECTED row UPDATE 재요청 시 `created_at`이 첫 요청 시각으로 남음 | 재요청 시점/거절 횟수 audit trail 손실 | 영향 적음 — 1차 분석 불필요 (소규모 사용자, 단순 UX 우선) | 사용자 행동/스토킹 분석 요구 시 별도 audit 테이블 (`friendship_events`) 검토 |
 
 ## 10. 1차 범위 / 후속 분리
 
