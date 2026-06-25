@@ -55,6 +55,7 @@ challenge-server (Spring Boot 멀티모듈 + 헥사고날 + DIP) 위에 친구 �
 |---|---|
 | 컨트롤러 슬라이스 | `/Users/hwamulman/woogunProject/challenge/challenge-server/app/src/test/kotlin/com/lwg/challenge/controller/friend/FriendControllerTest.kt` |
 | 통합 (Testcontainers) | `/Users/hwamulman/woogunProject/challenge/challenge-server/app/src/test/kotlin/com/lwg/challenge/integration/FriendIntegrationTest.kt` |
+| 서비스 단위 (escapeForLike) | `/Users/hwamulman/woogunProject/challenge/challenge-server/service/src/test/kotlin/com/lwg/challenge/service/friend/FriendServiceEscapeForLikeTest.kt` (T3 code quality fix, commit `1d9d88d`) |
 
 ### 수정
 
@@ -93,7 +94,7 @@ challenge-server (Spring Boot 멀티모듈 + 헥사고날 + DIP) 위에 친구 �
 | 8 | `me == receiverId` | `SnackbarException("자기 자신에게는 요청할 수 없어요")` |
 | 9 | receiver 미존재 / INACTIVE | `SnackbarException("사용자를 찾을 수 없어요")` |
 
-추가 안전망: 사전 검사 통과 후 동시 INSERT race 시 `UNIQUE(requester_id, receiver_id)` 위반을 `DataIntegrityViolationException` 으로 catch → `SnackbarException("이미 요청 보냈습니다")` 변환.
+추가 안전망: 사전 검사 통과 후 동시 INSERT race 시 `UNIQUE(requester_id, receiver_id)` 위반을 `DataIntegrityViolationException` 으로 catch → `SnackbarException("이미 요청 보냈습니다")` 변환. **신규 INSERT 분기는 `saveAndFlush` 사용** — `save` 만 호출하면 flush 가 트랜잭션 commit 시점으로 미뤄져 catch 블록 밖에서 예외가 터지므로 의도한 700 대신 500 으로 노출되는 dead code 가 된다 (T3 code quality fix, commit `1d9d88d`).
 
 ### accept / reject / cancel 권한
 
@@ -180,6 +181,28 @@ challenge-server (Spring Boot 멀티모듈 + 헥사고날 + DIP) 위에 친구 �
 
 - `sendRequest` 의 race 백업 `DataIntegrityViolationException` catch 빈도 (로그 레벨 INFO+ 잡기)
 - 검색 응답 시간 P95 (현재 단일 LEFT JOIN + LIKE — 사용자 증가 시 우선 모니터링 대상)
+
+## 변경 이력 — Code Quality Fix (2026-06-25, commit `1d9d88d`)
+
+T3 초기 구현 (`bae8ab6`) 의 code quality review 에서 정확성 영향이 있는 Important 2건 식별 → 즉시 fix.
+
+### 1. `sendRequest` INSERT 분기 — `save` → `saveAndFlush`
+
+- **증상**: `jpa.save()` 는 `EntityManager.persist()` 만 호출하고 flush 는 트랜잭션 commit 시점으로 미룬다. UNIQUE(requester_id, receiver_id) 위반은 flush 시점에 발생하므로 service 의 `try/catch (DataIntegrityViolationException)` 블록 밖에서 터진다. → race 발생 시 의도한 `SnackbarException("이미 요청 보냈습니다", code=700)` 대신 `handleUncaught` 가 처리하여 HTTP 500 + code 500 으로 노출.
+- **수정**: `FriendshipRepository.saveAndFlush(...)` 포트 추가 → `FriendshipRepositoryImpl` 에서 `JpaRepository.saveAndFlush` 위임 → `FriendService.sendRequest` 신규 INSERT 분기에서 호출. 동일 분기의 `try/catch` 가 실제로 동작하도록 보장. 다른 분기(REJECTED → PENDING UPDATE, accept/reject)는 영향 없음.
+- **영향 파일**: `domain/repository/.../FriendshipRepository.kt`, `infra/repositoryimpl/.../FriendshipRepositoryImpl.kt`, `service/.../FriendService.kt`.
+
+### 2. `escapeForLike` 단위 테스트 6건 추가
+
+- **증상**: `\` → `%` → `_` replace 순서가 유일한 정확성 가드인데 어디에도 테스트가 없었음. 미래 refactor 가 순서를 바꾸면 silent break — `\` 가 이중 escape 되어 LIKE 패턴이 의미 깨짐 (사용자 입력 `"50%"` 등이 와일드카드로 동작할 수 있음).
+- **수정**: `service/src/test/kotlin/com/lwg/challenge/service/friend/FriendServiceEscapeForLikeTest.kt` 신규 (service 모듈 첫 테스트). 6 케이스 — 한글 / 퍼센트 / 언더스코어 / backslash (순서 회귀 방지) / 세 와일드카드 혼합 / 빈 문자열.
+- **검증**: `./gradlew :service:test` → 6/6 passed.
+
+### 회귀 검증
+
+- `./gradlew build` → BUILD SUCCESSFUL.
+- `./gradlew :app:test` → 동일 결과 (FriendControllerTest 15/15, GlobalExceptionHandlerTest 5/5, AuthControllerTest 5/5, Smoke 1/1; 통합 테스트 17건은 Docker 미가용으로 동일하게 skip — Auth 5 / Record 3 / ActiveChallenge 3 / FriendIntegrationTest 9).
+- 모바일/디자인 영향 없음 (포트 시그니처 호환 추가, 외부 노출 컨트랙트 변경 없음).
 
 ## 다음 단계 (Task 4-8)
 
