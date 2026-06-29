@@ -1,5 +1,7 @@
 # user-info feature spec
 
+> ⚠️ **2026-06-29 옵션 1 정정 (구현 후 추가)**: 본 spec의 모바일 Repository 패턴 표현(`onError: (Throwable)`, `UserInfoError.kt`, `SilentAuthExpired`, `AuthEventBus` repository 내부 처리)은 작성 시점에 `feedback_mobile_repository_pattern.md` 메모리가 stale 상태였음에 기반함. 실제 구현은 `challenge-app` 현재 표준(`faae2cd "refactor: repository 구현 방식 템플릿에 맞게 변경"` — 사용자 본인 commit)에 맞춰 **옵션 1**(`onError: (String)`, 도메인 에러 클래스 없음, `SilentAuthExpired` 미사용, 401은 Ktor Auth 플러그인 전담)로 진행됐다. 상세는 [summary.md "옵션 1 적용"](./summary.md) 참조.
+
 > 백엔드의 user 테이블 row를 모바일이 조회 → DataStore에 캐시 → Home 화면에서 닉네임/프사 표시. CarOwnerRenew `UserInfoRepositoryImpl` 패턴(cacheFirst / networkOnly) 적용. 부수 작업으로 `UserProfile` 모델을 `LoginResult`에 평탄화하여 의미 정합화.
 
 ## 1. 개요

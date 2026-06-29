@@ -1,5 +1,7 @@
 # user-info Implementation Plan
 
+> ⚠️ **2026-06-29 옵션 1 정정 (구현 후 추가)**: 본 plan T3/T4의 모바일 Repository 패턴 지시(`onError: (Throwable)`, `UserInfoError.kt` 생성, `SilentAuthExpired` import 재사용, `authEventBus` 주입)는 작성 시점에 stale 메모리 기반이었음. 실제 구현은 옵션 1 패턴(`onError: (String)`, 도메인 에러 클래스 없음, `SilentAuthExpired` 미사용, `AuthEventBus` repository 미주입 — 401은 Ktor Auth(bearer) 플러그인 전담)으로 진행됨. T3 분석 단계에서 mobile-dev가 `faae2cd` 식별 + 에스컬레이션 + 메모리 갱신 후 진행. 상세는 [summary.md "옵션 1 적용"](./summary.md), [mobile-report.md "옵션 1 결정 사유"](./mobile-report.md) 참조.
+
 > **For agentic workers:** REQUIRED EXECUTION: **Agent Teams** (Claude Code v2.1.178+ 기준, 사용자 명시). `mobile-dev` agent type 팀원은 코드 편집을 child claude(`cd challenge-app && claude -p`)에 위임 강제 — `mobile-dev.md` "코드 편집 흐름" 섹션 적용.
 
 **Goal:** 인증된 사용자의 본인 정보(id, kakaoId, nickname, profileImageUrl)를 모바일이 백엔드 endpoint로 조회 → DataStore에 캐시 → Home 화면에서 표시. cacheFirst/networkOnly 옵션 지원.

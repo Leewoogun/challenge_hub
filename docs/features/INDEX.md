@@ -2,6 +2,7 @@
 
 | feature-id | 제목 | 상태 | 완료일 | 링크 |
 |-----------|------|------|-------|------|
+| user-info | 본인 정보 조회 endpoint + 모바일 캐시 (DataStore, cacheFirst/networkOnly, LoginResult 평탄화) | completed | 2026-06-29 | [📄](./user-info/summary.md) |
 | friends | 친구 화면 (1차 1단계: 빈 상태 UI만, 백엔드 X) | partially-completed | 2026-06-24 | [📄](./friends/summary.md) |
 | auth-refresh-rotation | Refresh Token Rotation (DB sha256 hash + Ktor Auth 일원화) | completed | 2026-05-28 | [📄](./auth-refresh-rotation/summary.md) |
 | home-feed | 홈 화면 (진행 중 챌린지 + 전적 + 빈 상태) | completed (v2: 2026-06-15 API 분리) | 2026-05-25 | [📄](./home-feed/summary.md) |
