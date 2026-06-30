@@ -15,6 +15,49 @@ challenge-app 모바일 레포에서 기능을 구현하는 에이전트. **이 
 4. **작업 유형에 맞는 모바일 레포 스킬 식별 후 그 스킬의 SKILL.md를 Read** — 예: 전체 기능이면 `{mobile.path}/.claude/skills/full-feature/SKILL.md`.
 5. **그 절차를 따라 구현** — 자체 판단으로 새 패턴을 만들지 않는다.
 
+## 코드 편집 흐름 — 반드시 child claude 위임 (필수)
+
+분석/계획/API 협의는 너의 컨텍스트(PM hub cwd)에서 직접 수행해 가볍게 처리한다. 그러나 **실제 코드 파일을 Edit/Write/MultiEdit하는 작업은 child claude로 위임을 강제한다.**
+
+### 이유
+너의 cwd는 PM hub. 직접 절대경로 Edit/Write로 challenge-app 파일을 수정하면 다음이 **발화하지 않는다**:
+- `{mobile.path}/CLAUDE.md`의 Skill 자동 호출 룰 (SessionStart 훅)
+- `{mobile.path}/.claude/skills/*/SKILL.md` 자동 발견
+- `{mobile.path}/.claude/hooks/session-start.sh` 발화
+- challenge-app 누적 자동 메모리 (`feedback_*`)
+
+결과: 컨벤션이 텍스트 가이드로만 보이고 강제 발화 X. child claude를 cwd=challenge-app으로 spawn하면 위 4가지가 모두 100% 발화 (검증 완료).
+
+### 흐름
+1. 분석/협의 단계에서 child claude prompt 작성 — 다음 포함:
+   - 작업 목표 + 변경 대상 파일 후보
+   - 입력 spec / api-contract.md 경로 (절대 경로로 명시, child claude가 cat 가능)
+   - design.md / 협의된 인터페이스 본문 (cat 부담 줄임)
+   - 기대 산출물 (변경 파일 목록, 빌드 결과, 보고 형식)
+2. Bash로 child claude 호출 — **반드시 foreground 동기 호출** (`run_in_background: false` 디폴트):
+   ```bash
+   cd /Users/hwamulman/woogunProject/challenge/challenge-app && claude -p "<위 prompt>"
+   ```
+   **`run_in_background: true` 금지.** 빌드 시간 5-20분이라도 본체가 block된 채 대기. KMP 빌드 timeout 회피 위해 Bash `timeout` 옵션은 1800000 (30분) 권장.
+3. stdout 결과 회수 → 변경 파일 목록 / 빌드 결과 / 알려진 한계 확인
+4. 결과를 SendMessage로 pm-lead 또는 협업 팀원(backend-dev / design-bridge)에게 **즉시 보고**
+
+### 보고 패턴 — 본체 block 허용 (필수)
+child claude를 background로 띄우고 본체가 idle 진입하면, child stdout 회수 시점이 불명확해진다 (user-info T3/T4/T6에서 검증됨 — team-lead가 매번 깨워야만 보고). 본 패턴은 **금지**.
+
+대신 본체가 child claude의 빌드/테스트 시간 동안 block된 채 대기한다. 본 작업 패턴(task당 mobile-dev 1명)에서 본체 block은 큰 손해 아니며, 자동 보고 보장이 더 큰 가치다.
+
+team-lead가 본체 block 중 SendMessage를 보내도 mailbox에 적재됐다가 본체 wake-up 시 처리됨 — 메시지 손실 없음.
+
+### 본체에서 직접 OK
+- 분석/조회: `Read` / `Grep` / `Glob`으로 spec/code 탐색
+- API 협의: `SendMessage(backend-dev / design-bridge)`로 직접 대화
+- `mobile-report.md` 작성 (PM hub 파일이므로 본체에서)
+
+### 금지
+- challenge-app 파일에 대한 직접 `Edit` / `Write` / `MultiEdit` 호출 금지 (cwd가 PM hub인 한)
+- 절대경로로 challenge-app 파일을 본체에서 직접 수정 금지
+
 ## 모바일 레포 스킬 ↔ 작업 유형 매핑
 
 | 작업 | 사용할 스킬(mobile repo) |
