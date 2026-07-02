@@ -70,11 +70,19 @@ friends 1차 1단계 spec/plan에 적힌 후속 작업 가이드와 실제 백�
 - 친구 화면 메인에 "받은 요청 N건" 인라인 섹션 + 상단 배지
 - FCM 통합은 별도 spec/plan으로 분리 (챌린지 응원/평가 등 더 우선순위 높은 알림과 함께 한꺼번에 도입)
 
-### 4.5 카카오톡 초대: KakaoLink + 커스텀 템플릿
+### 4.5 카카오톡 초대: KakaoTalk Share (Default TextTemplate)
 
-- 결정: 카카오 디벨로퍼스 콘솔에 등록한 커스텀 메시지 템플릿 사용
-- "친구 추가"(앱 사용자 대상 검색)와 "친구 초대"(앱 미사용자 대상 KakaoLink) 두 진입점 명확히 분리
-- 1차에서는 inviter 자동 연결 X (메시지 버튼 → 마켓 URL만)
+> ⚠️ **2026-07-02 정정**: 원안 "KakaoLink + 커스텀 템플릿(콘솔 등록 + templateId)"에서 **SDK Default `TextTemplate` 방식**으로 변경. 이유:
+> - 앱을 스토어에 배포하지 않고 Firebase App Distribution으로 친구 4명 소규모 운용 결정
+> - 콘솔 GUI 빌더는 텍스트형 미지원 (Feed/List/Commerce만) — 텍스트 위주 메시지 위해 우회 필요
+> - Default Template은 콘솔 등록 skip + `templateId` 발급 불필요 + `KAKAO_INVITE_TEMPLATE_ID` 환경변수 없이 앱 코드에서 `TextTemplate` 직접 정의
+> - 문구 변경 시 앱 재배포 필요하지만 소규모 App Distribution 운용에선 큰 부담 아님
+
+- 결정: 카카오 SDK Default `TextTemplate` 사용, 콘솔 템플릿 등록 X
+- "친구 추가"(앱 사용자 대상 검색)와 "친구 초대"(카카오톡 공유) 두 진입점 명확히 분리
+- 앱 미설치자용 fallback URL은 임시 dummy (`https://developers.kakao.com` 등) — 스토어 배포 안 하므로 실 유의미 X
+- 딥링크: `challenge://open` — 앱 설치자 열림, 미설치자는 웹 URL로 fallback (실질 무동작)
+- 1차에서 inviter 자동 연결 X (deep link `inviterId` 미포함)
 
 ### 4.6 진입 순서: 모바일 + 백엔드 동시
 
