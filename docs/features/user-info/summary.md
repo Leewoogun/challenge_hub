@@ -2,7 +2,8 @@
 
 - **feature-id**: user-info
 - **완료일**: 2026-06-29
-- **상태**: completed
+- **T4 취소 반영일**: 2026-07-02
+- **상태**: completed (T4 HomeViewModel 통합 사용자 결정으로 사후 취소)
 
 ## 구현 개요
 
@@ -20,9 +21,11 @@
 
 ## 화면 / UI 변경
 
-- **HomeViewModel** 확장: `UserInfoRepository` 주입 + `init`에서 `getUserInfo(CACHE_FIRST)` 단발 트리거 + `observeUserInfoCache()` collect → `_userInfo` 갱신 → `combine(getHomeData, _userInfo)` 결합
-- **HomeUiState.Data** 확장: `userInfo: UserInfo? = null` 필드 추가 (default null로 Preview 보존)
-- **HomeScreen.kt 미수정** — UI 표시는 본 범위 밖 (spec §6 "UI 변경 없음"). 닉네임/프사 실제 노출은 후속 작업(내 프로필 화면 등).
+> ⚠️ **2026-07-02 T4 사후 취소**: 아래 HomeViewModel 통합은 구현 완료됐으나 사용자가 커밋(`8a5e725`) 시점에 의도적으로 제외. HEAD에는 T4 통합 없음. `UserInfoRepository.observeUserInfoCache()` API도 인터페이스에서 제거됨. UserInfo 활용은 친구 T7b `FriendsViewModel.inviteFriend`(초대 시점 `getUserInfo(CACHE_FIRST).firstOrNull()`)로 이동. Home에서 닉네임/프사 노출은 후속 작업(내 프로필 화면)에서 결정.
+
+- ~~**HomeViewModel** 확장~~ (사후 취소): `UserInfoRepository` 주입 + `init`에서 `getUserInfo(CACHE_FIRST)` 단발 트리거 + `observeUserInfoCache()` collect → `_userInfo` 갱신 → `combine(getHomeData, _userInfo)` 결합
+- ~~**HomeUiState.Data** 확장~~ (사후 취소): `userInfo: UserInfo? = null` 필드 추가
+- **HomeScreen.kt 미수정** — 유지
 
 ## 주요 변경 파일
 

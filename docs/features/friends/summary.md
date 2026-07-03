@@ -1,8 +1,75 @@
-# 친구 화면 (friends) — Summary (1차 1단계)
+# 친구 화면 (friends) — Summary
 
 - **feature-id**: friends
-- **완료일**: 2026-06-24
-- **상태**: partially-completed (1차 1단계 빈 상태 UI만 — 백엔드/친구 목록/추가 흐름은 1차 2단계로 이연)
+- **1차 1단계 완료**: 2026-06-24 (빈 상태 UI)
+- **2차 친구 추가 완료**: 2026-07-02 (백엔드 7 endpoint + 모바일 도메인/Data/ViewModel/UI/KakaoLink 초대)
+- **상태**: completed (모바일 working tree 사용자 commit 대기)
+
+## 2차 — 친구 추가 (2026-07-02 완료)
+
+친구 시스템의 실제 동작 구현 완료. 백엔드 endpoint 7개 + 모바일 도메인/Data/ViewModel/UI/카카오톡 초대. spec은 [spec-friend-add.md](./spec-friend-add.md), api-contract는 [api-contract-friend-add.md](./api-contract-friend-add.md), plan은 [plan-friend-add.md](./plan-friend-add.md), backend report는 [backend-report.md](./backend-report.md), mobile report는 [mobile-report.md](./mobile-report.md).
+
+### 엔드포인트 (V1 friendships 스키마 그대로, 마이그레이션 0건)
+
+| Method | Path | 용도 |
+|---|---|---|
+| GET | `/api/v1/users/search?nickname={q}` | 닉네임 contains 검색 (min 2자, LIMIT 20) |
+| POST | `/api/v1/friends/requests` | 친구 요청 보내기 |
+| POST | `/api/v1/friends/requests/{id}/accept` | 받은 요청 수락 |
+| POST | `/api/v1/friends/requests/{id}/reject` | 받은 요청 거절 |
+| DELETE | `/api/v1/friends/requests/{id}` | 내가 보낸 요청 취소 |
+| GET | `/api/v1/friends` | 친구 목록 (ACCEPTED) |
+| GET | `/api/v1/friends/requests/received` | 받은 요청 목록 (PENDING) |
+
+challenge-server commit `bae8ab6` → `1d9d88d` push 완료.
+
+### 모바일 트랙 진행
+
+| Task | 담당 | 상태 |
+|---|---|---|
+| T3 backend-dev — 백엔드 구현 | backend-dev | ✅ push 완료 |
+| T4 mobile-dev — 도메인/Data 레이어 | 사용자 직접 커밋 (`81eccf0`) | ✅ |
+| T5 mobile-dev — ViewModel + 테스트 | 사용자 직접 커밋 (`81eccf0`) | ✅ |
+| T6 mobile-dev — designsystem 컴포넌트 (`FriendListItem`, `FriendRequestCard`) | Agent Teams (mobile-dev + 옵션 C) | ✅ working tree |
+| T7a mobile-dev — feature 화면 + Navigation | Agent Teams | ✅ working tree |
+| T7b mobile-dev — `:core:invite` + KakaoLink 초대 (SDK Default `TextTemplate`) | Agent Teams | ✅ working tree |
+| T8 pm-lead — 통합 검증 + report-and-document | pm-lead | ✅ 본 문서 |
+
+### 결정 사항
+
+- **KakaoLink 방식 변경 (spec §4.5 정정, 2026-07-02)**: 원안 "콘솔 커스텀 템플릿 + templateId" → **SDK Default `TextTemplate`** 방식. 사용자가 앱을 스토어 배포 안 하고 Firebase App Distribution으로 친구 4명 소규모 운용 결정 + 카카오 콘솔 GUI 빌더에 텍스트형 미지원 (Feed/List/Commerce만) → Default Template은 콘솔 등록 skip + `templateId` 발급 불필요.
+- **HEAD 드리프트 대응 (T7b)**: 사용자 커밋 `8a5e725`에서 `UserInfoRepository.observeUserInfoCache()` 제거 확인 → inviteFriend는 `getUserInfo(CACHE_FIRST).firstOrNull()`(옵션 B)로 처리 + null 가드.
+- **컴포넌트 분할 (T7a)**: `FriendsActionRow` / `ReceivedRequestsSection` / `FriendsListSection` 3개 sub-component로 분할 (design-system skill 정합).
+- **이미지 로더 부재 (T6)**: 프로필 이미지는 닉네임 이니셜 placeholder로 처리 (원격 이미지 로더 도입은 후속).
+
+### Agent Teams + 옵션 C 검증
+
+- backend-dev / mobile-dev 팀원 spawn (Agent tool `name` parameter)
+- mobile-dev는 옵션 C(`cd challenge-app && claude -p`)로 코드 편집 위임 → 컨벤션(SessionStart 훅 + skill + 자동 메모리) 강제 발화
+- **Bash 10분 캡 학습 반영**: T7b에서 child에게 빌드까지 시키면 SIGTERM 발생 사례 확인 → `mobile-dev.md` 재갱신 "child = Edit only, 본체 = background 빌드 검증" 새 표준 도입
+
+### 테스트 결과 (2026-07-02 실측)
+
+- **Android testDebugUnitTest**:
+  - `FriendsViewModelTest` **10/10 PASS** (T7a 7 + T7b invite 3, 회귀 0)
+  - `FriendsSearchViewModelTest` **12/12 PASS** (회귀 0)
+  - `HomeViewModelTest` **10/10 PASS** (회귀 0)
+  - **종합 32/32 PASS**
+- **빌드**: Android/common 166 tasks SUCCESS + iOS 컴파일 SUCCESS
+- **iOS 유닛테스트**: 미실행 (backlog)
+
+### 알려진 한계 / 후속
+
+- **iOS 카톡 공유 실제 연동** — 사용자 Xcode 작업 (SPM `KakaoSDKShare` + `KakaoInviteBridge.inviteHandler` 주입) — backlog 등재
+- **iOS 유닛테스트** (`:feature:friends:iosSimulatorArm64Test`) — backlog 등재
+- **원격 이미지 로더** (Coil3 KMP / Kamel) — backlog 등재
+- **`IconTextButton iconSize` 파라미터** (14dp vs 16dp) — backlog 등재
+- **친구 초대 manual smoke** — 사용자 디바이스에서 검증 (Android 카톡 공유 시트 정상 열림 확인)
+- **모바일 commit/push** — 사용자 결정 (신규 ~19 + 수정 ~12)
+
+---
+
+
 
 ## 구현 개요
 

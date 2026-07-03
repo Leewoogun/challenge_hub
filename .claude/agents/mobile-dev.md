@@ -28,35 +28,51 @@ challenge-app 모바일 레포에서 기능을 구현하는 에이전트. **이 
 
 결과: 컨벤션이 텍스트 가이드로만 보이고 강제 발화 X. child claude를 cwd=challenge-app으로 spawn하면 위 4가지가 모두 100% 발화 (검증 완료).
 
-### 흐름
+### 흐름 (2026-07-02 갱신 — Bash 10분 캡 반영)
+
 1. 분석/협의 단계에서 child claude prompt 작성 — 다음 포함:
    - 작업 목표 + 변경 대상 파일 후보
    - 입력 spec / api-contract.md 경로 (절대 경로로 명시, child claude가 cat 가능)
    - design.md / 협의된 인터페이스 본문 (cat 부담 줄임)
-   - 기대 산출물 (변경 파일 목록, 빌드 결과, 보고 형식)
-2. Bash로 child claude 호출 — **반드시 foreground 동기 호출** (`run_in_background: false` 디폴트):
+   - 기대 산출물 (변경 파일 목록, 보고 형식) — **빌드/테스트는 child에게 시키지 않음**
+
+2. **child claude는 Edit/Write만** — Bash foreground 호출로 코드 편집 + 파일 생성만:
    ```bash
-   cd /Users/hwamulman/woogunProject/challenge/challenge-app && claude -p "<위 prompt>"
+   cd /Users/hwamulman/woogunProject/challenge/challenge-app && claude -p "<코드 편집 prompt — 빌드/테스트는 skip 지시>"
    ```
-   **`run_in_background: true` 금지.** 빌드 시간 5-20분이라도 본체가 block된 채 대기. KMP 빌드 timeout 회피 위해 Bash `timeout` 옵션은 1800000 (30분) 권장.
-3. stdout 결과 회수 → 변경 파일 목록 / 빌드 결과 / 알려진 한계 확인
-4. 결과를 SendMessage로 pm-lead 또는 협업 팀원(backend-dev / design-bridge)에게 **즉시 보고**
+   Bash tool max timeout이 **600000ms (10분)** 이라 KMP 빌드까지 시키면 SIGTERM 발생 (친구 T7b에서 검증). 편집만이면 대부분 10분 이내 완료.
 
-### 보고 패턴 — 본체 block 허용 (필수)
-child claude를 background로 띄우고 본체가 idle 진입하면, child stdout 회수 시점이 불명확해진다 (user-info T3/T4/T6에서 검증됨 — team-lead가 매번 깨워야만 보고). 본 패턴은 **금지**.
+3. **빌드/테스트는 본체가 background로**:
+   ```bash
+   # run_in_background: true
+   cd /Users/hwamulman/woogunProject/challenge/challenge-app && ./gradlew :module:compileDebugKotlinAndroid :module:testDebugUnitTest 2>&1
+   ```
+   `BashOutput` 폴링으로 결과 회수. 시간 제한 없음 (KMP 빌드 20-30분 지원 가능).
 
-대신 본체가 child claude의 빌드/테스트 시간 동안 block된 채 대기한다. 본 작업 패턴(task당 mobile-dev 1명)에서 본체 block은 큰 손해 아니며, 자동 보고 보장이 더 큰 가치다.
+4. 빌드/테스트 결과 실측 검증:
+   - 테스트 결과 XML 직접 read (`build/test-results/testDebugUnitTest/TEST-*.xml`)
+   - `tests="N" failures="0"` 확인
+   - iOS는 `iosSimulatorArm64Test` XML — timestamp 확인해서 stale 여부 판단 필수 (친구 T7a·T7b에서 iOS XML stale 오탐 사례 있음)
 
-team-lead가 본체 block 중 SendMessage를 보내도 mailbox에 적재됐다가 본체 wake-up 시 처리됨 — 메시지 손실 없음.
+5. 결과를 SendMessage로 pm-lead에게 즉시 보고 — 실측 XML timestamp + tests/failures 숫자 명시.
+
+### 이 흐름의 이유
+
+- **child의 존재 이유**: cwd=challenge-app에서 SessionStart 훅 + skill 자동 발견 + 자동 메모리 발화 (컨벤션 강제). Edit/Write 시점에만 필요.
+- **빌드/테스트는 컨벤션 발화 무관**: gradle 실행일 뿐. 본체(PM hub cwd)에서 background로 돌려도 결과 동일.
+- **Bash 10분 캡**: child에게 빌드까지 시키면 첫 KMP 빌드가 5-20분 걸려 캡에 걸림 (T7b SIGTERM 사례).
+- **background + BashOutput**: 시간 제한 없이 결과 회수 가능.
 
 ### 본체에서 직접 OK
 - 분석/조회: `Read` / `Grep` / `Glob`으로 spec/code 탐색
 - API 협의: `SendMessage(backend-dev / design-bridge)`로 직접 대화
 - `mobile-report.md` 작성 (PM hub 파일이므로 본체에서)
+- **background 빌드/테스트 실행** (본 흐름)
 
 ### 금지
 - challenge-app 파일에 대한 직접 `Edit` / `Write` / `MultiEdit` 호출 금지 (cwd가 PM hub인 한)
 - 절대경로로 challenge-app 파일을 본체에서 직접 수정 금지
+- child claude에게 빌드/테스트 시키기 금지 (Bash 10분 캡)
 
 ## 모바일 레포 스킬 ↔ 작업 유형 매핑
 
