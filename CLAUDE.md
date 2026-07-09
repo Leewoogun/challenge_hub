@@ -9,11 +9,27 @@
 ## 기능 단위 작업 진입점
 사용자가 "○○ 기능 만들자", "신규 feature", "기능 개발" 같은 요청을 하면 `run-feature` 스킬을 사용한다(`.claude/skills/run-feature/SKILL.md`).
 
-흐름:
+### 사전 조건 (Agent Teams)
+- `~/.claude/settings.json`에 `"env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" }` 설정 (한 번만, 재시작 필요)
+- Claude Code **v2.1.178+** 사용. 이전 버전의 `TeamCreate` / `TeamDelete` 도구는 제거됨.
+
+### 흐름 (Agent Teams 기반)
 1. pm-lead가 `feature-spec`으로 스펙 + API 계약 초안 작성
-2. TeamCreate로 mobile-dev + backend-dev (+ UI면 design-bridge) 팀 구성
-3. mobile-dev ↔ backend-dev가 SendMessage로 API 계약 확정 → 각자 구현
+2. **자연어로 팀원 spawn 요청** — "mobile-dev / backend-dev / (UI면) design-bridge agent type으로 팀원 spawn"
+   - 활성화돼 있으면 별도 도구 호출 없이 Claude가 자동으로 팀 구성
+   - 각 팀원은 `.claude/agents/{name}.md` 정의의 페르소나 + tools allowlist + model을 적용받음
+   - subagent 정의의 `skills` / `mcpServers` frontmatter는 팀원으로 실행 시 적용 안 됨 (일반 세션과 동일하게 프로젝트/사용자 설정에서 로드)
+3. mobile-dev ↔ backend-dev가 **SendMessage**로 API 계약 확정 → 각자 구현
+   - **mobile-dev는 코드 편집 시 child claude 위임 강제** — 상세는 `mobile-dev.md`의 "코드 편집 흐름" 섹션. 분석/협의는 본체, 실제 Edit/Write는 `cd challenge-app && claude -p`로 spawn (challenge-app의 SessionStart 훅 / skills / 자동 메모리 발화 보장).
+   - backend-dev / design-bridge는 PM hub cwd에서 직접 작업 (절대경로 reach-in 편집).
 4. pm-lead가 `report-and-document`로 summary.md + INDEX.md 작성
+
+### Agent Teams 한계 (인지)
+- **세션당 1팀** — 다중 feature 동시 진행은 별도 세션 필요.
+- **중첩 팀 X** — 팀원이 자기 팀원 못 만듦 (Agent tool로 일회성 subagent는 가능).
+- **in-process 세션 재개 시 팀원 복원 X** — `/resume` 후 새로 spawn 필요.
+- **토큰 사용량 큼** — 각 팀원이 별도 Claude 인스턴스. 작업 비용 큰 점 인지.
+- 표시 모드는 기본 `"in-process"` (메인 터미널 내 에이전트 패널, 화살표+Enter로 팀원 대화 전환). 분할창 원하면 `~/.claude/settings.json`에 `"teammateMode": "tmux"` 또는 `"iterm2"` 설정.
 
 ## 문서 위치
 - `docs/features/{feature-id}/` — 기능별 문서 묶음
