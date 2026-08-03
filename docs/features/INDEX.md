@@ -2,7 +2,8 @@
 
 | feature-id | 제목 | 상태 | 완료일 | 링크 |
 |-----------|------|------|-------|------|
-| dev-test-login | 개발용 테스트 로그인 (가짜 계정 3개 + debug 전용 버튼) | partially-completed (격리 OFF 실서버 검증 미완) | 2026-08-03 | [📄](./dev-test-login/summary.md) |
+| soul-oath | 영혼의 맹세 (계약서 + 양측 서명 → `is_finalized` 시 `IN_PROGRESS`) | partially-completed (iOS 실기 미검증 / 주관 판단 3건) | 2026-08-03 | [📄](./soul-oath/summary.md) |
+| dev-test-login | 개발용 테스트 로그인 (가짜 계정 3개 + debug 전용 버튼) | partially-completed (격리 OFF는 배포 전 관문으로 이월) | 2026-08-03 | [📄](./dev-test-login/summary.md) |
 | datetime-model-migration | 날짜·시간 모델 통일 (`Instant`/UTC → `LocalDateTime`/KST, `yyyy-MM-dd HH:mm:ss`) | completed | 2026-07-31 | [📄](./datetime-model-migration/summary.md) |
 | challenge-create | 챌린지 신청 (생성 → PENDING → 수락/거절, 홈 "받은 도전장") | completed | 2026-07-31 | [📄](./challenge-create/summary.md) |
 | friends | 친구 화면 + 검색·요청·수락·카톡 초대 (2차 완료) | completed | 2026-07-02 | [📄](./friends/summary.md) |
