@@ -119,7 +119,7 @@ data class ActiveChallengeDto(
     val myMission: String,
     val opponentNickname: String,
     val opponentMission: String,
-    val deadline: Instant,             // ISO-8601 UTC
+    val deadline: LocalDateTime,       // 🔴 ADR-0010(2026-07-31)으로 개정: "yyyy-MM-dd HH:mm:ss" KST. 원래는 Instant/ISO-8601 UTC
     val myVerificationStatus: VerificationStatus,
     val opponentVerificationStatus: VerificationStatus,
     val bet: String,
