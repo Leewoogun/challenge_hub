@@ -59,14 +59,20 @@
       "test": "kotlin.test (현재 스켈레톤 수준)",
       "build": "Gradle Kotlin DSL + 커스텀 build-logic 플러그인"
     },
+    "_modules_comment": "2026-07-28 challenge-create Phase 3에서 settings.gradle.kts 실측으로 갱신. feature 모듈이 중첩 구조로 분화됨(:feature:friends:list/search, :feature:challenge:create). :local:* / :core:ui / :feature:splash 누락분 반영. 주의: friends 2차의 :core:invite 는 사용자 커밋 대기 중이라 settings.gradle.kts 에 아직 없음.",
     "modules": [
       ":composeApp",
-      ":core:designsystem", ":core:utils", ":core:navigation",
+      ":core:designsystem", ":core:ui", ":core:utils", ":core:navigation",
       ":domain:model", ":domain:repository", ":domain:usecase",
       ":data:repositoryImpl",
+      ":local:datastore", ":local:database",
       ":remote:network", ":remote:api", ":remote:model", ":remote:mapper",
-      ":feature:main", ":feature:home", ":feature:login", ":feature:friends", ":feature:ranking", ":feature:mypage"
+      ":feature:main", ":feature:home", ":feature:login", ":feature:splash",
+      ":feature:friends:list", ":feature:friends:search",
+      ":feature:challenge:create",
+      ":feature:ranking", ":feature:mypage"
     ],
+    "component_placement_rule": "feature 전용 컴포넌트는 해당 feature 모듈의 component/ 하위에 둔다. :core:designsystem 은 도메인 무관 프리미티브(Button/Divider/Label/Scaffold/Spacer 등) + theme 만 보유. 커밋 72d9d9c 로 사용자가 확립한 규칙이며, :core:designsystem 이 :core:utils 만 의존해 :domain:model 을 못 받는 제약과도 맞물린다.",
     "own_harness": {
       "claude_dir": "/Users/hwamulman/woogunProject/challenge/challenge-app/.claude",
       "skills": ["full-feature", "feature", "domain", "data-remote", "data-local", "viewmodel", "navigation", "figma-ui", "bugfix", "modify-feature", "test-usecase", "test-viewmodel", "design-system"],
@@ -75,7 +81,7 @@
     },
     "blockers": [
       "✅ 2026-04-23 완료: 패키지 com.lwg.challenge, 프로젝트명 Challenge로 리네임 적용됨.",
-      "⚠️ 기본 API base URL이 TMDB — challenge 서버 URL로 교체 필요 (remote/network/build.gradle.kts + local.properties의 tmdb_token). ADR-0007 환경 분리 결정과 연계.",
+      "✅ 2026-07-28 확인 완료: base URL은 이미 challenge 서버 기준. remote/network/build.gradle.kts가 buildkonfig로 Android(기본 http://10.0.2.2:8080/)와 iOS(기본 http://localhost:8080/)를 분리하고 local.properties의 challenge_api_base_url_android/_ios로 오버라이드한다. TMDB 흔적 코드·설정 전부 0건 (68d6533 시점에 정리됨). ⚠️ 단 local.properties 값이 LAN IP 하드코딩이라 네트워크가 바뀌면 재설정 필요 — ADR-0007 환경 분리에서 다룰 사안.",
       "✅ 2026-05-11 완료: :feature:ex1/ex2/ex3 모듈 통째 삭제 (bottom-navigation feature).",
       "✅ 2026-05-25 완료: :feature:home placeholder → challenge 도메인 본 UI 교체 (home-feed feature, HomeScreen + StatsBar + ChallengeCard + HomeEmptyState).",
       "⚠️ CLAUDE.md의 모듈 구조가 README와 불일치 — :core:domain/network/data 라고 적혀 있으나 실제는 :domain:*/:remote:*/:data:* 구조. 정정 필요. (ADR-0003 마지막 잔여)"
