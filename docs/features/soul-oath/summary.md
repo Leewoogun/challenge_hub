@@ -29,13 +29,25 @@
 
 ## 테스트 결과
 
-**백엔드 — 171/171 passed, 0 failed** (직전 134, +37) · 통합 45건 skip
+**백엔드 — 192/192 passed, 0 failed** (feature 종료 시 171 → 실기 버그 대응·감사로 +21) · 통합 45건 skip
 **백엔드 실서버 end-to-end — 56/56 PASS** (취소 FK / 바이트 왕복 3자 동일 / 완결 재렌더 / V7)
-**모바일 — 230/230 passed, 0 failed** (HEAD 144 → 230)
-- **회귀 0 / 의도적 교체 5 / 신규 86** — `144 + 26 + 45 − 5 + 8 + 5 + 7 = 230`
+**모바일 — 254/254 passed, 0 failed** (feature 종료 시 230 → 이후 +24)
+- feature 시점 내역: **회귀 0 / 의도적 교체 5 / 신규 86** — `144 + 26 + 45 − 5 + 8 + 5 + 7 = 230`
 - Android 유닛 + KMP common + iOS 링크 전부 BUILD SUCCESSFUL
 
 **Android 실기 (Galaxy S25 Ultra, Android 16) + 실서버** — B 구간 객관 항목 전부 통과.
+
+> ⚠️ **증분 표기 규칙 (2026-08-06 신설)** — 테스트 수 기준선은 **세 값이 다르다**(HEAD tracked / 워킹트리 tracked / 전체 grep). 증분 보고 시 **어느 값을 읽었는지 명시**하고, **증분은 `(끝) − (시작)` 을 실제로 빼서** 적는다. **총계에서 역산하지 않는다** — `247 → +7` 오보가 정확히 역산이었고, **두 오차가 상쇄돼 총계만 맞아떨어졌다**(실제 `245 → +9 = 254`). `dev-test-login` 의 `148 vs 144` 도 같은 것이었을 수 있다.
+
+## 🔴 feature 종료 후 실기에서 나온 것 — `contract: null` (2026-08-06)
+
+`GET /challenges/11` 이 `"contract": null` 을 돌려줘 `JsonDecodingException`. **맹세 도입 이전에 만들어진 레거시 챌린지**가 원인이고, **현재 코드로는 재현되지 않는다**(INSERT 경로 하나뿐 + 같은 트랜잭션에서 contract 생성, challenge만 남기고 contract를 지우는 경로 없음).
+
+**모바일은 `contract` 를 nullable 로 유지한다** — 서버가 안 보낸다는 보증이 클라 방어를 지울 근거가 못 된다. 자세한 경위는 [change-log.md](./change-log.md#2026-08-06--contract-null-실기-크래시--전-계약-감사-25).
+
+이 건이 **전 계약 감사(#25)**로 번졌고 거기서 **시간 포맷 축의 능동적 오류**가 나왔다 — `friends` 계약이 서버가 보내지 않는 `Instant`/ISO-8601 을 보낸다고 적고 있었다. 원인은 도구가 아니라 **ADR-0010 의 커버리지 누락**이고, 발원지는 **`api-contract` 스킬 파일 자체**였다(새 계약이 거기서 나온다).
+
+산출물: 서버 `WireShapeContractTest`(13건, 제거·개명 두 축 실증) · PM `.claude/scripts/contract-lint.py`(시간 포맷 래칫) · 모바일 `RefreshTokenResolver` blank 가드(9건).
 
 ## 🔴 실기에서 나온 버그 3건 — 전부 테스트가 초록인 채였다
 
@@ -103,7 +115,11 @@
 - [ ] **🟡 자정 경계에 위저드 힌트와 계약서 날짜가 갈릴 수 있다** — 클라 시계로 계산한 힌트와 서버가 요청 도착 시점에 정하는 `challengeDate`가 초 단위 창에서 어긋난다. **⚠️ 클라 시계 동기화로는 안 고쳐진다**(원인이 시계 오차가 아님). 진짜 고치려면 `deadlineType` enum의 취지(기기 시계 조작 차단)와 맞바꿔야 한다 — **버그 수정이 아니라 트레이드오프 재검토**다.
 - [ ] **🟡 위저드 시스템 백 버튼 배선 미완** — `PlatformBackHandler` 승격은 완료(맹세 화면이 사용). 위저드는 3단계 상태기계 + dirty 이탈 확인이 얽혀 별건.
 - [ ] **🔴 통합 테스트 45건 여전히 skip** — 컨테이너 런타임 부재.
-- [ ] **커밋 0건** — 서버·모바일·PM 3개 레포 working tree.
+- [x] ~~**커밋 0건** — 서버·모바일·PM 3개 레포 working tree.~~ → 2026-08-06 해소. 서버 `e5eade0`(`scripts/` 포함 — `e2e-off.sh` 유실 위험 종료) / 모바일 `101a4f9` / PM `91f36b8`.
+- [ ] **🔴 #25 감사 산출물 3건 미커밋** — **전부 미추적(`??`) 이라 `git add` 없이는 커밋에 안 들어간다.** `e2e-off.sh` 가 사라졌던 경로가 정확히 이것이다.
+  - PM `.claude/scripts/contract-lint.py` — **유실되면 래칫이 풀린다**
+  - 서버 `app/src/test/.../WireShapeContractTest.kt` — #25 의 유일한 코드 산출물
+  - 모바일 `remote/network/.../RefreshTokenResolver.kt` + `commonTest/.../di/`
 
 ## 참조
 

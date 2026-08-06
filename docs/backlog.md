@@ -4,7 +4,8 @@
 >
 > **자동 갱신**: pm-lead가 `report-and-document` 스킬로 feature를 마무리할 때마다 summary.md의 미해결 이슈를 본 백로그에 자동 추가. 임의 시점 재정리는 "백로그 정리해줘" 한 마디로 pm-lead에게 요청.
 
-- **마지막 갱신**: 2026-08-03 (`soul-oath` partially-completed — 양측 서명 없이는 챌린지가 시작되지 않는다. 백엔드 171/171 + 실서버 56/56, 모바일 230/230, Android 실기 통과. 🔴 **실기에서 버그 3건** — 전부 테스트가 초록인 채였다. 미해결: iOS 실기 / 주관 3건 / 통합 45 skip / 3개 레포 커밋 0건)
+- **마지막 갱신**: 2026-08-06 (#25 전 계약 감사 — 백엔드 **192/192** passed, `WireShapeContractTest` 13건 신설. 🔴 nullable 축이 아니라 **시간 포맷 축**에서 능동적 오류 발견: `friends` 계약이 서버가 보내지 않는 `Instant`/ISO-8601을 보낸다고 적고 있었다. 원인은 도구가 아니라 **ADR-0010의 커버리지 누락**. mobile-dev가 `RefreshResponse`가 `ApiResult` 경로 밖이라 **설명 없는 로그아웃**이 가능함을 발견 → 즉시 수정 지시)
+- 직전 갱신: 2026-08-03 (`soul-oath` partially-completed — 양측 서명 없이는 챌린지가 시작되지 않는다. 백엔드 171/171 + 실서버 56/56, 모바일 230/230, Android 실기 통과. 🔴 **실기에서 버그 3건** — 전부 테스트가 초록인 채였다. 미해결: iOS 실기 / 주관 3건 / 통합 45 skip / 3개 레포 커밋 0건)
 - **우선순위 기호**: 🔴 긴급(블로커) / 🟡 중요 / 🟢 일반 / 🔵 대기(외부 의존)
 - **담당 약어**: pm / mobile / backend / design / user(사용자가 직접 처리)
 
@@ -18,6 +19,7 @@ _없음 — 다음 sprint 시작에 직접적 블로커는 없음._
 
 | 항목 | 출처 | 담당 | 메모 |
 |---|---|---|---|
+| 🟡 **모바일 코드 정리 — `flowUtil` 신설** | 사용자 지시 (2026-08-03) | mobile | **다음 모바일 작업의 우선 항목.** 현재 `flow { }` 블록이 **6개 RepositoryImpl에 10곳** 반복된다(`Challenge`/`UserInfo`/`Login`/`ActiveChallenge`/`Record`/`Friends`). `suspendOnFailureWithErrorHandling` + `onError` 콜백 + emit 패턴이 매번 손으로 복제되는 구조라, 한 곳이 바뀌면 나머지가 조용히 갈린다 — `soul-oath`에서 `UnknownApiError`가 `onError`를 안 부르던 결함이 **전 repository에 동시 영향**이었던 것과 같은 결이다. 공통 유틸로 접어 넣는다. |
 | 🔴 **`soul-oath` iOS 실기 미검증** (서명 캔버스 `pointerInput`) | [soul-oath/summary.md](./features/soul-oath/summary.md) | user + mobile | **기기 없음.** Compose `pointerInput` 드로잉은 KMP **선례 0건**이고 **지연·좌표 정확도는 손가락이 아니면 안 나온다.** ⚠️ **시뮬레이터로 대체하지 않았다** — 마우스 드래그는 손가락과 다르다. Android 실기에서는 통과(획 픽셀 97→13,701 / 인셋 박스 밖 0px / 종횡비 2.0000). |
 | **`soul-oath` 주관 판단 3건** (지연 체감 / 획이 각져 보이는가 / 캔버스 170dp 충분한가) | [soul-oath/summary.md](./features/soul-oath/summary.md) | user + design | 앱에서 **서명 한 번 그어보면** 된다. 각져 보이면 솎아내기 임계(정규화 거리 0.003)를 낮춘다. design.md §7 실기 항목이 여기 녹아 있다. |
 | **자정 경계에 위저드 힌트와 계약서 날짜가 갈릴 수 있다** | [soul-oath/summary.md](./features/soul-oath/summary.md) | backend + mobile | 클라 시계로 계산한 힌트(`7/28 24:00`)와 서버가 **요청 도착 시점**에 정하는 `challengeDate`가 초 단위 창에서 어긋나고, `soul-oath`가 그 결과를 **계약서에 영구 기록**한다. 🔴 **"클라 시계를 맞추면 된다"가 아니다** — 시계가 완벽해도 서명→도착 사이에 직렬화·네트워크가 들어간다. 진짜 고치려면 클라가 의도한 날짜를 보내고 서버가 존중해야 하는데 그건 `deadlineType` enum의 취지(**기기 시계 조작·타임존 불일치 차단**)와 맞바꾸는 것 — **버그 수정이 아니라 트레이드오프 재검토**다. 현재 판단은 안 고치는 쪽. |
@@ -39,6 +41,7 @@ _없음 — 다음 sprint 시작에 직접적 블로커는 없음._
 | **`IconTextButton iconSize` 파라미터화** (design.md 14dp vs 공용 컴포넌트 16dp) | [friends/mobile-report.md](./features/friends/mobile-report.md) | mobile | 2dp 차이 정정 원할 때. `:core:designsystem/IconTextButton.kt`에 `iconSize: Dp = 16.dp` 파라미터 추가. |
 | **friends 초대 manual smoke** (Android 카톡 공유 시트 정상 열림 + Default TextTemplate 렌더 확인) | [friends/summary.md](./features/friends/summary.md) | user | 모바일 commit/push 후 디바이스에서 확인. |
 | **friends 모바일 working tree commit/push** (T6+T7a+T7b 누적, 신규 ~19 + 수정 ~12) | [friends/mobile-report.md](./features/friends/mobile-report.md) | user | mobile-dev git 금지 룰로 working tree만 변경됨. 한 commit / 분리 사용자 결정. |
+| **로컬 저장 모델 스키마 드리프트** (`TokenPrefs` / `UserInfoPrefs` / `AppSettingsPrefs`) | [soul-oath/change-log.md](./features/soul-oath/change-log.md) (#25 감사, mobile-dev 지적) | mobile | DataStore 영속화 모델이라 **wire 계약과 축이 다르다** — wire는 서버·클라가 같은 시점에 배포되지만 로컬 저장은 **앱 버전 간** 드리프트라 해법 성격이 다르다(마이그레이션/버저닝). #25 감사에 끼워 넣으면 둘 다 얕아져서 분리했다. |
 | user-info iOS 단위 테스트 + framework link 검증 (`:feature:home:iosSimulatorArm64Test` + `xcodebuild`) | [user-info/summary.md](./features/user-info/summary.md) | mobile + user | T4 dispatch가 Android testDebugUnitTest만 수행. iOS 측 검증 별도 필요. |
 | 내 프로필 화면 (UserInfo 활용 — 닉네임 / 프사 노출 + 친구 초대 시 사용) | [user-info/summary.md](./features/user-info/summary.md) | design + mobile | 본 작업에선 캐시만 채우고 UI 노출 없음 (HomeScreen.kt 미수정). 디자인 + Lovable 작업 후 mobile 통합. |
 | user-info 명시적 갱신 UX (pull-to-refresh / 카카오 프로필 변경 감지) | [user-info/summary.md](./features/user-info/summary.md) | mobile | 1차에 `NETWORK_ONLY` 호출 지점 없음. 사용자 트리거 추가 시 호출. |
@@ -100,6 +103,7 @@ _없음 — 다음 sprint 시작에 직접적 블로커는 없음._
 | Apple Developer Account ($99/년) 구입 | iOS 빌드/배포 | iOS TestFlight 배포 시작 시점 |
 | Firebase 프로젝트(dev + prod) 생성 | FCM 푸시 | `push-fcm` feature 시작 시 |
 | Lovable 디자인 추가 화면 export (영혼의 맹세, 전화번호 등록 등) | 디자이너 작업 | 해당 화면 구현 시 차단 |
+| **서버 `WireShapeContractTest.kt` 커밋** | 사용자 액션 (에이전트 git 금지) | #25 감사의 **유일한 산출물**. `scripts/e2e-off.sh`가 한 번 유실됐던 것과 같은 구조 — 커밋 전까지는 없는 것과 같다. |
 
 ## ADR pending / in-progress
 
