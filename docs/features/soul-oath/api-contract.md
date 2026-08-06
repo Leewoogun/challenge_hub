@@ -160,9 +160,89 @@ spec 초안은 "거절·취소 시 정리"로 묶었으나 **둘은 다르다.**
 **`challenger`/`opponent` 를 역할 그대로 준다 — "나/상대" 로 뒤집지 않는다.**
 > 상세는 **계약서를 보여주는 화면**이라 양쪽을 다 그린다. `myMission`/`opponentMission` 으로 뒤집어 주면 "이 서명이 누구 것인지" 를 클라가 다시 계산해야 한다. 홈 카드(`/challenges/active`)는 "내 시점" 이 맞지만 계약서는 아니다.
 
-- 미서명 상태면 해당 `*Signature` / `*SignedAt` 은 `null`.
 - 당사자(challenger 또는 opponent)가 아니면 **700** `내 챌린지가 아니에요`.
 - 없는 id 는 **705** `챌린지를 찾을 수 없어요`.
+
+### 🔴 3.1 nullable 필드 — **전수 표** (2026-08-06 신설)
+
+**이 표에 없는 필드는 절대 `null` 이 아니다. 있는 필드는 반드시 `null` 을 받을 수 있어야 한다.**
+
+| 필드 | `null` 의 의미 | 언제 발생하나 | 지금 도달 가능? |
+|---|---|---|---|
+| `contract` | **이 챌린지에는 계약서가 없다** (맹세 개념 이전에 생성) | soul-oath 배포(2026-08-03 13:31) **이전에 만들어진 챌린지** | 레거시 1건(`id=11`)만. **신규는 구조적으로 불가** |
+| `contract.challengerSignature` / `challengerSignedAt` | 챌린저 미서명 | 실제로는 안 나온다(생성 시 항상 채워짐). 타입상 허용 | ❌ |
+| `contract.opponentSignature` / `opponentSignedAt` | **상대 미서명** | `PENDING` 구간 — 정상 상태 | ✅ 흔함 |
+| `challenger.mission` | — | 실제로는 안 나온다(생성 시 필수) | ❌ |
+| `opponent.mission` | **상대가 아직 수락 전** | `PENDING` 구간 (V5 이후 `opponent_mission` nullable) | ✅ 흔함 |
+| `challenger.profileImageUrl` / `opponent.profileImageUrl` | 카카오 프로필 이미지 없음 | 계정에 따라 | ✅ **흔함** (테스트 계정 3개 전부 `NULL` — 실측) |
+
+#### 절대 `null` 이 아닌 필드 — **확정 보증**
+
+위 표의 여집합이지만, 방어 코드를 넣을지 말지 갈리는 자리라 **명시적으로 보증한다.**
+
+| 필드 | 보증 |
+|---|---|
+| `challengeId` / `status` / `betContent` | 항상 값이 있다 |
+| **`challengeDate`** | 항상 `yyyy-MM-dd` 문자열 |
+| **`deadline`** | 항상 `yyyy-MM-dd HH:mm:ss` (KST). **`null` 을 보내지 않는다** |
+| `challenger.userId` / `nickname`, `opponent.userId` / `nickname` | 항상 값이 있다 |
+| `contract.content` / `contract.isFinalized` | `contract` 가 `null` 이 아닌 한 항상 값이 있다 |
+
+> `contract.content` 는 `contract` 안에 있으므로 **`contract` 자체의 `null` 검사만 통과하면 안전하다.** 이중 검사가 필요 없다.
+
+##### 🔴 이 보증의 범위 — **"서버가 안 보낸다"이지 "클라가 항상 파싱한다"가 아니다**
+
+`deadline` 을 두고 확인하다 나온 구분이라 남긴다. 내가 처음에 *"상세 매퍼의 `deadline == null` 방어는 여기선 발동하지 않는다"* 고 적었는데 **틀렸다** (2026-08-06 mobile-dev 정정).
+
+모바일 `WireLocalDateTimeSerializer` 는 **파싱 실패도 `null` 로 흡수**한다:
+```
+JSON null → null   /   문자열 아님 → null   /   🔴 포맷 파싱 실패 → null
+```
+즉 서버가 `null` 을 안 보내도 **포맷이 어긋난 문자열**을 보내면 클라에는 똑같이 `null` 로 도착한다. **위 표는 "서버가 `null` 을 보내지 않는다"를 보증하지, "클라 쪽 `null` 분기가 죽는다"를 보증하지 않는다.**
+
+→ **non-null 보증을 근거로 클라의 `null` 방어를 지우면 안 된다.** 보증이 없애주는 것은 *"서버가 빈 값을 줄까 봐"* 하는 방어뿐이고, **역직렬화 실패 경로는 그대로 남는다.**
+
+##### `contract: null` 과 `deadline` 파싱 실패를 다르게 처리하는 이유
+
+둘 다 클라에는 `null` 로 보이지만 뜻이 반대다 (mobile-dev 정리):
+
+| | 뜻 | 처리 |
+|---|---|---|
+| `contract: null` | **맹세가 존재하지 않는다** | 사실이므로 그대로 보여준다 — 카드 그리고 서명 블록만 생략 |
+| `deadline` 파싱 실패 | **마감은 존재하는데 못 읽었다** | 조건 하나가 빠진 계약서를 계약서라고 내놓게 된다 → 전체 실패 |
+
+**전자는 없는 걸 없다고 말하는 것이고, 후자는 있는 걸 없는 것처럼 보이게 하는 것이다.** §4.6("존재할 수 없는 것은 행 자체를 뺀다")이 전자에만 적용되는 이유도 같다.
+
+#### 이 표가 왜 생겼나 — 같은 버그가 두 번 났다
+
+`opponent.mission` 과 `contract` 가 **정확히 같은 실패 모드**로 모바일을 깨뜨렸다(non-nullable 필드에 명시적 `null` → `JsonConvertException`). 우연이 아니라 **계약이 nullable 을 산문으로 적고 일부를 빠뜨린 결과**다 — 개정 전 §3 에는 `*Signature`/`*SignedAt` 한 줄만 있었고, 서버 DTO 는 그때도 이미 `contract`·`opponent.mission`·`profileImageUrl` 을 nullable 로 갖고 있었다.
+
+**산문 대신 표를 쓰는 이유는 빠뜨린 게 눈에 띄기 때문이다.**
+
+#### 🔴 `contract: null` 을 백필로 없애지 않는 이유
+
+"신규는 도달 불가면 레거시 1건을 채우고 non-nullable 로 만들면 되지 않나" — **안 된다. 세 방법 전부 다른 걸 깨뜨린다.**
+
+| 백필 방식 | 깨지는 것 |
+|---|---|
+| 서명을 만들어 넣는다 | **없던 맹세를 날조한다.** "무를 수 없는 약속" 이 컨셉인 제품에서 최악의 조작이다 |
+| 서명 `null` + `is_finalized=false` | `id=11` 은 `IN_PROGRESS` 다 → **"`is_finalized=true` 인 시점에만 `IN_PROGRESS`"** 불변식의 **첫 위반**이 된다 |
+| 서명 `null` + `is_finalized=true` | 자기모순 (완결인데 서명이 없다) |
+
+**레거시 row 는 맹세라는 개념 자체보다 먼저 만들어졌다. 어떤 값을 넣어도 거짓이 되므로 `null` 이 유일하게 참인 값이다.**
+
+#### 테스트 파생 규칙
+
+**이 표에서 파싱 테스트를 파생시킨다 — 라이브 응답 샘플링이 아니라 표가 출처다.**
+
+라이브 응답 픽스처는 **"지금 존재하는 것"** 을 검증하지 **"계약이 허용하는 것"** 을 검증하지 못한다. 실제로 mobile-dev 의 wire 픽스처는 `GET /challenges/18`(모든 필드가 찬 응답)에서 떠서 `contract: null` 을 **구조적으로 못 덮었고**, 서버는 이 엔드포인트에 테스트가 **0건**이었다.
+
+**null 최대 픽스처** — 모든 nullable 이 동시에 `null` 인 응답. 실서버로는 만들 수 없는 조합이라 **서버 슬라이스 테스트가 실제 직렬화기로 생성**한다(`ChallengeDetailControllerTest`):
+```json
+{"data":{"challengeId":7,"status":"IN_PROGRESS","challengeDate":"2026-08-03","deadline":"2026-08-04 00:00:00","betContent":"커피 사기","challenger":{"userId":1,"nickname":"이우건","profileImageUrl":null,"mission":null},"opponent":{"userId":14,"nickname":"테스터1","profileImageUrl":null,"mission":null},"contract":null},"error":false,"code":200,"message":""}
+```
+
+> ⚠️ **"키 없음" 과 "키가 null" 은 다른 실패다.** kotlinx.serialization 기준 전자는 `MissingFieldException`(기본값 없을 때), 후자는 `JsonConvertException`(필드가 non-nullable 일 때). 서버는 **키를 포함하고 값을 `null`** 로 보낸다. 누군가 `@JsonInclude(NON_NULL)` 을 켜면 키가 사라져 모바일 실패 모드가 조용히 바뀌므로, 서버 테스트가 **원문에 `"contract":null` 이 있는지**까지 확인한다.
 
 ---
 
@@ -259,3 +339,6 @@ V7 에서 `*_signature_data` 컬럼에 위 포맷 예시를 `COMMENT ON COLUMN` 
 | 2026-08-03 | backend-dev | T-M1 실측 전량 채택 — **초안(10,000점/64KB)보다 타이트한 실측값(2,000/32KB)을 따름**. 서버 검증을 **길이 1차 → 파싱 2차** 순으로 확정(악의적 대용량을 파싱 전에 차단). `v==1` 고정 근거 명시(구조 검증이 v1 전용이라 고정 안 하면 **v2 에 v1 규칙을 조용히 적용**하게 된다). **점 1개 획은 유효**로 확정 — 최소 점 개수를 서버가 발명하면 짧은 서명을 오거부하고 임계값에 근거가 없다. 디코드 실패 정책 2건 승인 + **서버도 읽기 경로에서 크기를 검사하지 않는다**로 대칭 확장. **오픈 이슈 0건 — `negotiating` → `confirmed`** |
 | 2026-08-03 | pm-lead | **발견 2건 재현 후 전량 승인.** 명시적 삭제 채택(CASCADE 기각 — "무를 수 없는 약속" 컨셉 + 기존 물리삭제가 이미 감사추적을 포기한 맥락), 거절/취소 구분 승인(거절은 contract **보존**), **`CONTRACT_SIGNING` 미도입 + 원자 요청 확정**(enum 값은 제거하지 말고 쓰지도 말 것), `_signature_data` 승인. spec 에 확정 반영 |
 | 2026-08-03 | pm-lead | 🔴 **`confirmed` 후 정정 — §1/§2/§3 예시가 초안 포맷(`{"v","strokes"}` 객체 + Float 중첩)으로 남아 §4.1 정본(`{"v","g","s"}` 평탄 Int, **문자열**)과 한 문서 안에서 충돌했다.** mobile-dev 제기 — *"§4까지 안 내려간 사람은 §1을 그대로 믿는다"*. 세 예시를 정본으로 통일하고, **`signature`가 객체가 아니라 문자열인 이유**(§4.4 길이→파싱 순서는 문자열 도착이 전제)를 §1에 명시. **모바일은 정본을 따르고 있었으나 서버는 아니었다** — `signature`를 `JsonNode`(객체)로 받고 있어 **32KB 상한이 파싱 앞에서 막지 못했다.** 문서 정리가 아니라 **동작이 바뀐 정정**이다. 실제 변경: DTO 2곳 `JsonNode?`→`String?` / 응답 `@JsonRawValue` **제거** 3곳 (raw로 주면 모바일이 `JsonElement`→문자열 재인코딩을 타 무손실이 깨진다 — raw로 막으려던 문제를 raw가 만들고 있었다) / 컨트롤러 2곳 / 테스트 body 15곳 인코딩 변경(단언 불변) |
+| 2026-08-06 | mobile-dev → backend-dev | **§3.1 non-null 보증의 범위 정정.** backend-dev 가 *"상세 매퍼의 `deadline == null` 방어는 여기선 발동하지 않는다"* 고 적은 것이 **틀렸다** — 모바일 `WireLocalDateTimeSerializer` 가 **포맷 파싱 실패도 `null` 로 흡수**하므로, 서버가 `null` 을 안 보내도 **어긋난 포맷 문자열**은 클라에 `null` 로 도착한다. **non-null 보증은 "서버가 안 보낸다"이지 "클라가 항상 파싱한다"가 아니다** — 보증을 근거로 클라 `null` 방어를 지우면 안 된다. `contract:null`(없는 걸 없다고 함 → 그대로 표시)과 `deadline` 파싱 실패(있는 걸 없는 것처럼 보이게 함 → 전체 실패)를 다르게 처리하는 근거도 함께 명시 |
+| 2026-08-06 | backend-dev ↔ mobile-dev | **#24 합의 완료.** `contract:null` = **정상 상태**(백필 3안이 전부 다른 걸 깨뜨림 — 서명 날조 / `is_finalized` 불변식 첫 위반 / 자기모순). 레거시 행 **삭제도 기각** — 지워도 API nullable 여부라는 질문이 남고, 구조적 불가능을 만드는 건 삭제가 아니라 **단일 INSERT 경로 + 같은 트랜잭션**이다. 화면 처리는 **카드는 그리고 서명 블록만 생략**(mobile-dev 제3안) — backend-dev 의 "섹션 감추기" 안은 상세 화면이 `ContractCard` 하나뿐이라 **백지가 되므로 기각**됐다. `id=11` 최상위 필드 전부 정상임을 DB 로 확인(레거시에 없는 건 나중에 붙은 층뿐). §3.1 에 **non-nullable 확정 보증** 절 추가 — 특히 **`deadline` 은 이 엔드포인트에서 null 이 될 수 없다** |
+| 2026-08-06 | backend-dev | 🔴 **`confirmed` 후 정정 — §3.1 nullable 전수 표 신설.** 사용자 실기에서 `GET /challenges/11` 의 `contract:null` 이 모바일 상세 화면을 깨뜨렸다(#24). **`opponent.mission` 건과 같은 실패 모드**이며, 원인은 §3 이 nullable 을 산문으로 적고 `contract`·`opponent.mission`·`profileImageUrl` 을 빠뜨린 것이다(서버 DTO 는 그때도 nullable 이었다). **`contract:null` 을 정상 상태로 확정** — 백필 세 방법이 전부 다른 걸 깨뜨린다(서명 날조 / `is_finalized` 불변식 위반 / 자기모순). 표에서 파싱 테스트를 파생시키는 규칙 + null 최대 픽스처 추가. 서버는 `GET /challenges/{id}` 테스트가 **0건**이었고 `ChallengeDetailControllerTest` 8건 신설 |

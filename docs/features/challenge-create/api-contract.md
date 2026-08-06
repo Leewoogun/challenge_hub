@@ -21,7 +21,7 @@
 - ADR-0009 refresh — 일반 API 401은 Ktor Auth 플러그인 자동 갱신, `/auth/refresh` 401은 강제 재로그인.
 - 페이지네이션 없음 (받은 도전장은 소량 가정).
 - ~~시간 필드 직렬화: **ISO-8601 UTC** (`2026-07-28T15:00:00Z`).~~ → 🔴 **2026-07-31 [ADR-0010](../../decisions/0010-datetime-model-localdatetime.md)으로 대체됨.** 현행은 **`yyyy-MM-dd HH:mm:ss` (KST)** 다 — `T`·`Z`·offset·밀리초 없음. 날짜 전용은 `yyyy-MM-dd`(변경 없음).
-  > **아래 본문의 `"...T15:00:00Z"` 예시들은 이 문서가 확정된 시점(2026-07-28)의 표기이며 현재 서버 응답과 다르다.** 실제 값은 `deadline = "2026-08-01 00:00:00"` 형태다(같은 순간의 다른 표기 — 시각은 이동하지 않았다). 개정 근거·실측 대조는 [datetime-model-migration](../datetime-model-migration/summary.md) 참조. 이 문서는 **당시 합의 기록으로 보존**한다.
+  > ✅ **2026-08-06 — 본문 예시·서버 타입을 전부 현행 표기로 정정했다**(#25). 이전에는 *"당시 합의 기록으로 보존"* 하며 낡은 `"...T15:00:00Z"` 예시를 남겨뒀으나, **헤더에 취소선이 있어도 예시를 복사하는 사람은 헤더를 안 본다.** 알려진 오류를 남겨둘 이유가 없다는 pm-lead 판단으로 정정했다. 개정 근거·실측 대조는 [datetime-model-migration](../datetime-model-migration/summary.md) 참조. **당시 합의 기록은 아래 협의 이력에 남는다.**
 - ID 타입: 전부 `Long` (BIGSERIAL 기반).
 - 기존 `GET /api/v1/challenges/active`(home-feed)와 경로 네임스페이스를 공유한다. **응답 shape 변경 없음** — 본 feature는 신규 경로만 추가.
 
@@ -44,12 +44,12 @@
 ### DeadlineType (요청 전용)
 | 값 | 의미 | 서버 환산 |
 |---|---|---|
-| `TODAY` | 오늘 자정 마감 | `challenge_date` = KST 오늘, `deadline` = KST 익일 00:00 → UTC |
-| `TOMORROW` | 내일 자정 마감 | `challenge_date` = KST 내일, `deadline` = KST 익익일 00:00 → UTC |
+| `TODAY` | 오늘 자정 마감 | `challenge_date` = KST 오늘, `deadline` = **KST 익일 00:00** (UTC 변환 없음 — ADR-0010) |
+| `TOMORROW` | 내일 자정 마감 | `challenge_date` = KST 내일, `deadline` = **KST 익익일 00:00** (UTC 변환 없음 — ADR-0010) |
 
 > **클라이언트는 timestamp를 보내지 않는다.** 기기 시계 조작·타임존 불일치를 차단하고 마감 기준을 서버로 일원화하기 위함. KST(UTC+9) 고정 — 해외 사용자 대응은 범위 밖.
 >
-> 예: KST 2026-07-28 14:00에 `TODAY`로 생성 → `challengeDate` = `2026-07-28`, `deadline` = `2026-07-28T15:00:00Z` (= KST 07-29 00:00).
+> 예: KST 2026-07-28 14:00에 `TODAY`로 생성 → `challengeDate` = `2026-07-28`, `deadline` = `2026-07-29 00:00:00` (KST 자정).
 
 ### ChallengeStatus (응답)
 | 값 | 의미 |
@@ -98,7 +98,7 @@
     "challengeId": 7,
     "status": "PENDING",
     "challengeDate": "2026-07-28",
-    "deadline": "2026-07-28T15:00:00Z"
+    "deadline": "2026-07-29 00:00:00"
   }
 }
 ```
@@ -111,20 +111,20 @@ data class ChallengeCreateData(
     val status: ChallengeStatus,
     // @JsonFormat(shape = STRING, pattern = "yyyy-MM-dd") — 반드시 "2026-07-28" 문자열
     val challengeDate: LocalDate,
-    // @JsonFormat(shape = STRING) — 반드시 "2026-07-28T15:00:00Z"
-    val deadline: Instant,
+    // @JsonFormat(shape = STRING, pattern = WIRE_DATETIME) — 반드시 "2026-07-29 00:00:00" (KST)
+    val deadline: LocalDateTime,
 )
 ```
 
-> **직렬화 고정 (2026-07-28 확정)** — 모바일은 `kotlinx-datetime`을 의존성에 넣지 않았다(home-feed에서 stdlib `kotlin.time.Instant`만 쓰기로 확정, `domain/model/build.gradle.kts`에 해당 의존성 없음). 서버는 `@JsonFormat`을 **명시적으로** 붙여 Jackson 설정 변화와 무관하게 `"2026-07-28"` 평문 ISO date를 보장하고, 컨트롤러 슬라이스 테스트가 실제 응답 JSON 문자열을 assert한다 (`[2026,7,28]` 배열 회귀 방지).
+> **직렬화 고정 (2026-07-28 확정)** — ~~모바일은 `kotlinx-datetime`을 의존성에 넣지 않았다(home-feed에서 stdlib `kotlin.time.Instant`만 쓰기로 확정, `domain/model/build.gradle.kts`에 해당 의존성 없음).~~ 🔴 **2026-08-06 실측: 지금은 사실이 아니다.** `gradle/libs.versions.toml` 에 `kotlinx-datetime = "0.7.1"` 이 있고 `domain/model/build.gradle.kts:9` 가 `api(libs.kotlinx.datetime)` 를 선언한다 — ADR-0010 이 모바일 시간 타입을 `kotlinx.datetime.LocalDateTime` 으로 바꾸면서 도입됐다. **아래 `@JsonFormat` 명시 원칙 자체는 그대로 유효하다.** 서버는 `@JsonFormat`을 **명시적으로** 붙여 Jackson 설정 변화와 무관하게 `"2026-07-28"` 평문 ISO date를 보장하고, 컨트롤러 슬라이스 테스트가 실제 응답 JSON 문자열을 assert한다 (`[2026,7,28]` 배열 회귀 방지).
 >
 > **양측 수신 타입 대조** — 이 표가 어긋나면 파싱이 조용히 깨진다:
 >
 > | 필드 | 서버 타입 | JSON | **모바일 수신 타입** |
 > |---|---|---|---|
 > | `challengeDate` | `LocalDate` | `"2026-07-28"` | **`String`** (`= ""` 기본값) |
-> | `deadline` | `Instant` | `"2026-07-28T15:00:00Z"` | `String` → `Instant.parse()` |
-> | `createdAt` | `Instant` | `"2026-07-28T02:11:00Z"` | `String` → `Instant.parse()` |
+> | `deadline` | `LocalDateTime` | `"2026-07-29 00:00:00"` | `String` → `WireLocalDateTimeSerializer` |
+> | `createdAt` | `LocalDateTime` | `"2026-07-28 11:11:00"` | `String` → `WireLocalDateTimeSerializer` |
 > | `challengeId` / `challengerId` / `opponentId` | `Long` | `7` | `Long` (`= 0L` 기본값) |
 > | `status` | `ChallengeStatus` | `"PENDING"` | enum (UPPER_SNAKE_CASE) |
 
@@ -147,7 +147,7 @@ data class ChallengeCreateData(
 > 판정 순서: 역방향 PENDING을 먼저 검사하고, 그 외 모든 중복(내가 건 PENDING / 양방향 IN_PROGRESS)은 첫 번째 문구로 묶는다.
 
 ### 모바일측 주의사항
-- `deadline`은 표시 전용. 카운트다운은 기존 `Instant.toRelativeKoreanString`(`:core:utils`) 재사용.
+- `deadline`은 표시 전용. 카운트다운은 `LocalDateTime.toRelativeKoreanString`(`:core:utils`) 재사용 — **ADR-0010 이후 수신 타입이 `Instant` → `LocalDateTime` 으로 바뀌었다**(`RelativeTimeFormat.kt:23` 실측).
 - 성공 시 홈으로 복귀하며 진행 중 목록을 갱신할 필요는 없다 — 생성된 챌린지는 `PENDING`이라 `/challenges/active`에 안 잡힌다.
 
 ### 백엔드측 주의사항
@@ -185,8 +185,8 @@ data class ChallengeCreateData(
         "challengerMission": "오늘 운동 1시간 하기",
         "betContent": "커피 사기",
         "challengeDate": "2026-07-28",
-        "deadline": "2026-07-28T15:00:00Z",
-        "createdAt": "2026-07-28T02:11:00Z"
+        "deadline": "2026-07-29 00:00:00",
+        "createdAt": "2026-07-28 11:11:00"
       }
     ]
   }
@@ -206,8 +206,8 @@ data class ReceivedChallengeItem(
     val challengerMission: String,
     val betContent: String,
     val challengeDate: LocalDate,             // "2026-07-28"
-    val deadline: Instant,                    // "2026-07-28T15:00:00Z"
-    val createdAt: Instant,                   // "2026-07-28T02:11:00Z" — 초 단위로 절삭
+    val deadline: LocalDateTime,              // "2026-07-29 00:00:00" (KST)
+    val createdAt: LocalDateTime,             // "2026-07-28 11:11:00" (KST) — 초 단위로 절삭
 )
 ```
 
@@ -220,7 +220,7 @@ data class ReceivedChallengeItem(
 - `challengerProfileImageUrl`은 **nullable**. 원격 이미지 로더가 아직 없으므로(backlog) 닉네임 이니셜 placeholder로 렌더 — `friends` 2차 `FriendListItem` 패턴 재사용.
 - 마감 임박 표시는 `deadline` 기준 클라이언트 계산.
 - `challengeDate`는 현재 UI에서 쓰지 않는다(카운트다운은 `deadline` 기준). 매퍼에서 버려도 무해 — 서버는 계속 내려준다.
-- **`Instant.parse()` 실패 시 `Instant.DISTANT_PAST` 폴백**이라 파싱 에러가 조용히 "이미 마감된 카드"로 나타난다(home-feed 선례). 서버가 표기를 고정하는 이유.
+- ~~**`Instant.parse()` 실패 시 `Instant.DISTANT_PAST` 폴백**~~ → 🔴 **ADR-0010 이후 메커니즘이 바뀌었다.** 현행은 `WireLocalDateTimeSerializer` 가 **파싱 실패를 `null` 로 흡수**한다(센티넬 폐기). 다만 **"파싱 실패가 조용히 지나간다"는 성질은 그대로**라 서버가 표기를 고정하는 이유도 그대로다.
 
 ### 백엔드측 주의사항
 - `challenges` ↔ `users` JOIN 1쿼리. `challenger_id` 방향만 조인하면 된다.
@@ -388,3 +388,5 @@ data class ReceivedChallengeItem(
 | 2026-07-28 | mobile-dev | 재확인 회신 — 이슈 1은 "700으로 평탄화하지 말고 **배분 유지**" 명시(지금 평탄화하면 정보가 영영 소실되고, 모바일 관점에선 700/705 결과가 동일하므로 이득이 없다). 이슈 2 메시지 2종 분기 채택 동의(passthrough라 모바일 추가 비용 0). 이슈 3은 모바일도 `String.length`(UTF-16)로 카운트해 서버와 완전 동일 — 이모지 2 카운트는 미용 이슈로 수용. 이슈 4 a·b·c 전부 동의, `challengeDate` **모바일 수신 타입 = `String`** 명기 요청. 이슈 5는 **(A) 권고** + (B) 반대 근거 제시, 스코프 판단이라 pm-lead 결정 수용 |
 | 2026-07-28 | pm-lead | **이슈 5 → 옵션 C 확정 (사용자 결정).** `GET /challenges/sent` 미도입, 엔드포인트 5건 유지. `DELETE /challenges/{id}`는 계약대로 구현 + 서버 테스트 작성하되 **모바일 호출부 없음 → 서버 테스트로만 검증**, 통합 검증 대상 제외. (A)는 실제 비용이 design·모바일에 쏠려 임계 경로를 늘리고 "HomeViewModel 테스트 10건 회귀 0" 리스크를 압박해 기각, (B)는 mobile-dev 근거로 기각. spec 정정(스코프 결정 6 / 시나리오 4 취소선 / 수용 기준 한정 / 비범위 추가) + 백로그 등재 완료. 나머지 1~4 합의안 전량 승인 |
 | 2026-07-28 | backend-dev | 오픈 이슈 5 해소 처리 + 양측 수신 타입 대조표 추가 + §5에 "모바일 호출부 없음 / 서버 테스트 전용 검증" 명시. **미결 항목 0건 — 계약 최종 확정** |
+| 2026-08-06 | backend-dev | 🔴 **#25 감사 반영 — 본문의 낡은 시간 표기 14곳 정정.** ADR-0010(2026-07-31)으로 wire 포맷이 바뀌었는데 **헤더 취소선만 갱신되고 본문 예시·서버 타입·대조표는 `Instant`/ISO-8601 UTC 그대로**였다. 정정: 응답 예시 4곳 / 서버 타입 4곳 / 수신 타입 대조표 2곳 / `DeadlineType` 환산 표 2곳(`→ UTC` 삭제) / 본문 설명 1곳 / 모바일 유틸 수신 타입 1곳(`Instant.` → `LocalDateTime.toRelativeKoreanString`, 실측). **낡은 예시를 사료로 보존하던 방침도 철회** — 예시를 복사하는 사람은 헤더를 안 본다. 당시 합의는 본 협의 이력에 남는다 |
+| 2026-08-06 | backend-dev | **린트 경고 전수 분류(#29)에서 추가 발견 1건.** L119 의 *"모바일은 `kotlinx-datetime` 을 의존성에 넣지 않았다"* 가 **더 이상 사실이 아니다** — ADR-0010 이 모바일 시간 타입을 `kotlinx.datetime.LocalDateTime` 으로 바꾸며 도입했다(`domain/model/build.gradle.kts:9` 실측). 취소선 + 실측 근거로 정정. `@JsonFormat` 명시 원칙 자체는 유효 |

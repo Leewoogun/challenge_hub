@@ -22,8 +22,38 @@
 - ADR-0002 BaseResponse 패턴 — HTTP 200 + body `code`로 성공/비즈니스 에러 구분.
 - ADR-0009 refresh — 일반 API 401은 Ktor Auth 플러그인 자동 갱신 시도, `/auth/refresh` 401은 강제 재로그인.
 - 페이지네이션 없음 (소규모 친구 앱 가정, 검색은 LIMIT 20 고정).
-- 시간 필드 직렬화: ISO-8601 UTC (`Instant` / `OffsetDateTime` → `2026-06-25T03:14:15Z`).
+- ~~시간 필드 직렬화: **ISO-8601 UTC** (`Instant` / `OffsetDateTime` → `2026-06-25T03:14:15Z`).~~ → 🔴 **2026-07-31 [ADR-0010](../../decisions/0010-datetime-model-localdatetime.md) 으로 대체됨.** 현행은 **`yyyy-MM-dd HH:mm:ss` (KST)** 다 — `T`·`Z`·offset·밀리초 **없음**. 서버 타입도 `Instant` → `LocalDateTime` 이다.
 - ID 타입: 전부 `Long` (BIGSERIAL 기반).
+
+### 🔴 nullable 필드 — 전수 표 (2026-08-06 신설, #25)
+
+**이 표에 없는 필드는 절대 `null` 이 아니다. 있는 필드는 반드시 `null` 을 받을 수 있어야 한다.**
+
+| 필드 | 응답 | `null` 의 의미 | 도달 가능? |
+|---|---|---|---|
+| `FriendItem.profileImageUrl` | `GET /friends` | 카카오 프로필 이미지 없음 | ✅ **흔함** (테스트 계정 전부 `NULL`) |
+| `FromUser.profileImageUrl` | `GET /friends/requests/received` | 위와 동일 | ✅ 흔함 |
+| `UserSearchItem.profileImageUrl` | `GET /users/search` | 위와 동일 | ✅ 흔함 |
+| `UserSearchItem.pendingRequestId` | `GET /users/search` | PENDING 요청이 없다 (relation 별 조건은 §1 표 참조) | ✅ 흔함 |
+
+#### 절대 `null` 이 아닌 필드 — 확정 보증
+
+| 필드 | 보증 |
+|---|---|
+| 모든 `id` / `requestId` / `friendshipId` | 항상 값이 있다 |
+| `nickname` | 항상 값이 있다 (빈 문자열도 아님) |
+| **`since` / `requestedAt`** | 항상 `yyyy-MM-dd HH:mm:ss` (KST). **`null` 을 보내지 않는다** |
+| `relation` / `status` | 항상 enum 값 |
+| `friends` / `requests` / `users` 배열 | **빈 배열로 보낸다. `null` 금지** |
+
+> ⚠️ **이 보증의 범위 — "서버가 안 보낸다"이지 "클라가 항상 파싱한다"가 아니다.**
+> 모바일 `WireLocalDateTimeSerializer` 는 **포맷 파싱 실패도 `null` 로 흡수**한다. 즉 서버가 `null` 을 안 보내도 어긋난 포맷 문자열은 클라에 `null` 로 도착한다. **이 보증을 근거로 클라의 `null` 방어를 지우면 안 된다** (soul-oath §3.1 과 같은 규약).
+
+#### 테스트 파생 규칙
+
+**이 표에서 파싱 테스트를 파생시킨다 — 라이브 응답 샘플링이 아니라 표가 출처다.** 라이브 픽스처는 *"지금 존재하는 것"* 을 검증하지 *"계약이 허용하는 것"* 을 검증하지 못한다.
+
+서버는 `WireShapeContractTest` 가 **키가 사라지거나 개명되면 실패**하도록 고정한다 — nullable 대조가 못 덮는 축이다(#25 발견 D).
 
 ## 공통 enum
 
@@ -419,7 +449,7 @@ data class CancelFriendRequestData(
         "id": 42,
         "nickname": "민수",
         "profileImageUrl": "https://cdn.example.com/u/42.jpg",
-        "since": "2026-06-20T12:34:56Z"
+        "since": "2026-06-20 12:34:56"
       }
     ]
   }
@@ -439,7 +469,7 @@ data class FriendItem(
     val id: Long,                           // 친구(상대) user id (= 나 아님)
     val nickname: String,
     val profileImageUrl: String?,
-    val since: Instant,                     // friendships.accepted_at, ISO-8601 UTC
+    val since: LocalDateTime,               // friendships.accepted_at. `yyyy-MM-dd HH:mm:ss` KST (ADR-0010)
 )
 ```
 
@@ -489,7 +519,7 @@ data class FriendItem(
           "nickname": "민수",
           "profileImageUrl": "https://cdn.example.com/u/42.jpg"
         },
-        "requestedAt": "2026-06-24T18:00:00Z"
+        "requestedAt": "2026-06-24 18:00:00"
       }
     ]
   }
@@ -508,7 +538,7 @@ data class ReceivedFriendRequestsData(val requests: List<ReceivedFriendRequestIt
 data class ReceivedFriendRequestItem(
     val id: Long,                           // friendships.id (PENDING)
     val fromUser: FromUser,
-    val requestedAt: Instant,               // friendships.created_at, ISO-8601 UTC
+    val requestedAt: LocalDateTime,         // friendships.created_at. `yyyy-MM-dd HH:mm:ss` KST (ADR-0010)
 )
 data class FromUser(
     val id: Long,
@@ -553,7 +583,7 @@ data class FromUser(
 
 ## 모바일 ↔ 백엔드 공통 합의
 
-- **시간**: 모든 시간 필드는 `Instant` / ISO-8601 UTC (`2026-06-25T03:14:15Z`). KST 변환은 모바일이 표시 단계에서.
+- **시간**: 모든 시간 필드는 **`yyyy-MM-dd HH:mm:ss` (KST)** (`2026-06-25 12:14:15`) — ADR-0010. **모바일이 KST 로 변환하지 않는다** — 서버가 이미 KST 벽시계를 보낸다.
 - **enum 직렬화**: `Relation`, `FriendshipStatus` 모두 대문자 UPPER_SNAKE_CASE 문자열. 서버 enum class 기반, Jackson 기본 직렬화.
 - **빈 배열**: 응답의 `users` / `friends` / `requests` 모두 빈 배열 반환 (null 금지).
 - **ID 타입**: 전부 `Long` (BIGSERIAL 기반).
@@ -568,5 +598,6 @@ data class FromUser(
 |------|--------|------|
 | 2026-06-25 | pm-lead | 초안 + 확정 (모바일/백엔드 동시 진입 전제 — spec-friend-add.md §5에서 7개 endpoint 이미 합의됨, T1으로 곧장 `confirmed` 진입) |
 | 2026-06-25 | pm-lead | REJECTED 재요청 처리 = UPDATE 결정 (옵션 🅰️). spec §4.3 + §5.3 보강. code 701 미사용 명시. (T1 fix after code quality review) |
+| 2026-08-06 | backend-dev | 🔴 **#25 감사 반영 — `confirmed` 후 정정 2건.** ① **시간 포맷이 ADR-0010 이전 그대로였다** — 공통 절/예시/서버 타입 **6곳**이 `Instant` · ISO-8601 UTC(`2026-06-20T12:34:56Z`)로 적혀 있었으나 서버는 2026-07-31부터 `LocalDateTime` + `yyyy-MM-dd HH:mm:ss` KST 를 보낸다(`FriendListResponse` 실측). **계약이 서버가 실제로 보내는 것과 달랐다** — nullable 누락보다 나쁜, 능동적 오류다. ② **nullable 전수 표 + non-null 확정 보증 신설**(soul-oath §3.1 형식 승계). 보증에 **범위**(서버가 안 보낸다 ≠ 클라가 항상 파싱한다) 병기 |
 
 > 본 contract 확정 이후 변경은 [change-log.md](./change-log.md)와 본 섹션 양쪽에 append. 본 spec(`spec-friend-add.md`)이 친구 시스템 권위(authority) — 1차 1단계 `spec.md` / `plan.md`는 historical artifact.
