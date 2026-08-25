@@ -2,6 +2,7 @@
 
 | feature-id | 제목 | 상태 | 완료일 | 링크 |
 |-----------|------|------|-------|------|
+| challenge-result | 챌린지 결과 판정 (자정 배치 §2.6 판정 + FAILED·EXPIRED 전이 + 전적 집계, 푸시 제외) | completed (서버 실데이터 소급 실측. 디바이스 실기 미확인. 첫 스케줄러 — :batch 개통) | 2026-08-25 | [📄](./challenge-result/summary.md) |
 | challenge-verification | 챌린지 인증 (즉석 촬영 → multipart 제출 → 상대 사진 확인 + 상세 화면 재구성) | completed (Android 실기. iOS 촬영은 실기기 필요. 계약 2차 개정: multipart + JWT 서빙) | 2026-08-25 | [📄](./challenge-verification/summary.md) |
 | push-deeplink | 푸시 알림 딥링크 (알림 탭 → 목적지 이동, 인증 게이트 + 트레이 중복 제거) | **implemented** (모바일 커밋 `d25e394`. 🔴 **서버 3파일 미커밋** + 실기 5케이스 전수 미확인) | 2026-08-08 | [📄](./push-deeplink/summary.md) |
 | push-fcm | 푸시 알림 (챌린지 신청·수락·거절 3종 + 토큰 등록 + logout 실구현) | completed (Android. iOS 수신은 Apple 계정 제약으로 범위 제외) | 2026-08-07 | [📄](./push-fcm/summary.md) |

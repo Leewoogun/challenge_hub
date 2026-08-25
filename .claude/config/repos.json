@@ -70,7 +70,8 @@
       ":remote:network", ":remote:api", ":remote:model", ":remote:mapper", ":remote:datasource",
       ":feature:main", ":feature:home", ":feature:login", ":feature:splash",
       ":feature:friends:list", ":feature:friends:search",
-      ":feature:challenge:create", ":feature:challenge:oath", ":feature:challenge:detail",
+      ":feature:challenge:create", ":feature:challenge:oath", ":feature:challenge:detail", ":feature:challenge:verify",
+      ":core:camera",
       ":feature:ranking", ":feature:mypage"
     ],
     "component_placement_rule": "feature 전용 컴포넌트는 해당 feature 모듈의 component/ 하위에 둔다. :core:designsystem 은 도메인 무관 프리미티브(Button/Divider/Label/Scaffold/Spacer 등) + theme 만 보유. 커밋 72d9d9c 로 사용자가 확립한 규칙이며, :core:designsystem 이 :core:utils 만 의존해 :domain:model 을 못 받는 제약과도 맞물린다.",
@@ -108,16 +109,17 @@
       "test": "JUnit 5 + Spring Security Test",
       "build": "Gradle Kotlin DSL + build-logic 컨벤션 플러그인"
     },
-    "modules": [":app", ":api", ":core", ":domain", ":infra", ":batch"],
+    "_modules_comment": "2026-08-25 실측 갱신 (challenge-result 중 backend-dev 지적). 이전 기재(:api/:domain/:infra 단일)는 낡은 정보였다. :batch 는 challenge-result 에서 첫 코드(@Scheduled 판정 배치) 들어감.",
+    "modules": [":app", ":controller", ":service", ":domain:model", ":domain:repository", ":infra:entity", ":infra:jpa", ":infra:repositoryimpl", ":infra:external", ":core", ":batch"],
     "kotlin_plugins": {
       "kotlin-spring": "@Service/@Configuration 자동 open 처리",
       "kotlin-jpa": "@Entity/@MappedSuperclass/@Embeddable에 no-arg 생성자 자동 생성"
     },
     "blockers": [
-      "⚠️ 완전 스켈레톤: ChallengeServerApplication.kt와 smoke test 1개만 존재. 컨트롤러/서비스/도메인 전무.",
-      "⚠️ 첫 기능 전 기반 인프라 필요: SecurityFilterChain, JWT 필터, GlobalExceptionHandler, 표준 에러 DTO, OpenAPI config, CORS. docs/decisions/0002 참조.",
-      "⚠️ 마이그레이션 도구 미결정: ddl-auto=validate인데 Flyway/Liquibase 없음. docs/decisions/0001 참조.",
-      "⚠️ Redis 용도 미정: dependency만 있음."
+      "✅ (해소된 지 오래 — 2026-08-25 정리) 스켈레톤/기반 인프라/마이그레이션 항목 폐기: foundation feature 가 Security+JWT+GlobalExceptionHandler+OpenAPI 구축(ADR-0002), Flyway 채택(ADR-0001)으로 V9+ 운용 중, 컨트롤러/서비스/도메인 다수.",
+      "⚠️ Redis 용도 미정: dependency만 있음.",
+      "⚠️ 배치(:batch)는 단일 인스턴스 전제 — 다중 인스턴스 중복 실행 가드는 in-process 뿐(멱등이라 손상은 없음). DB 락은 ADR-0007 배포 시점 소관.",
+      "⚠️ 통합 테스트 45건 상시 skip — 컨테이너 런타임(Docker 등) 부재. 사용자 설치 시 일괄 해소."
     ]
   },
   "design": {

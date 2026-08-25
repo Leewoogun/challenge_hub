@@ -142,7 +142,7 @@ spec 초안은 "거절·취소 시 정리"로 묶었으나 **둘은 다르다.**
 ```json
 { "error": false, "code": 200, "message": "",
   "data": {
-    "challengeId": 7, "status": "IN_PROGRESS",
+    "challengeId": 7, "status": "IN_PROGRESS", "result": null,
     "challengeDate": "2026-08-03", "deadline": "2026-08-04 00:00:00",
     "betContent": "커피 사기",
     "challenger": { "userId": 1, "nickname": "이우건", "profileImageUrl": null, "mission": "운동 1시간" },
@@ -163,12 +163,27 @@ spec 초안은 "거절·취소 시 정리"로 묶었으나 **둘은 다르다.**
 - 당사자(challenger 또는 opponent)가 아니면 **700** `내 챌린지가 아니에요`.
 - 없는 id 는 **705** `챌린지를 찾을 수 없어요`.
 
+#### 🔴 `result` 추가 (2026-08-25, challenge-result) — [change-log](./change-log.md)
+
+`CHALLENGER_WIN` / `OPPONENT_WIN` / `DRAW` / `BOTH_LOSE` 중 하나, 또는 `null`.
+자정 직후 판정 배치가 채운다 ([challenge-result 계약 §3](../challenge-result/api-contract.md)).
+
+- 🔴 **`status == COMPLETED` ⟺ `result != null`** 이 서버 불변식이다. 그 외 상태에서는 항상 `null`
+- 🔴 **역할 기준이다.** `CHALLENGER_WIN` → "내가 이겼다" 로 뒤집는 것은 앱의 몫이다 —
+  이 응답이 `challenger`/`opponent` 를 역할 그대로 주는 것(위 문단)과 같은 이유이며,
+  `result` 만 시점을 달리하면 한 응답 안에 두 기준이 섞인다.
+  홈 카드(`/challenges/active`)는 화면 성격이 달라 `myResult`(내 시점)를 **따로** 준다
+- 🔴 `null` 이어도 **키는 항상 나간다** (`@JsonInclude(NON_NULL)` 미설정 — #24 선례).
+  `WireShapeContractTest` 가 고정한다
+- `EXPIRED` 는 판정이 아니다 — 계약서가 체결된 적 없는 챌린지라 `result` 는 `null` 로 남는다
+
 ### 🔴 3.1 nullable 필드 — **전수 표** (2026-08-06 신설)
 
 **이 표에 없는 필드는 절대 `null` 이 아니다. 있는 필드는 반드시 `null` 을 받을 수 있어야 한다.**
 
 | 필드 | `null` 의 의미 | 언제 발생하나 | 지금 도달 가능? |
 |---|---|---|---|
+| **`result`** (2026-08-25 신설) | **아직 판정되지 않았다** | `status != COMPLETED` 인 **모든** 구간 — 즉 대부분의 시간 | ✅ **가장 흔함** |
 | `contract` | **이 챌린지에는 계약서가 없다** (맹세 개념 이전에 생성) | soul-oath 배포(2026-08-03 13:31) **이전에 만들어진 챌린지** | 레거시 1건(`id=11`)만. **신규는 구조적으로 불가** |
 | `contract.challengerSignature` / `challengerSignedAt` | 챌린저 미서명 | 실제로는 안 나온다(생성 시 항상 채워짐). 타입상 허용 | ❌ |
 | `contract.opponentSignature` / `opponentSignedAt` | **상대 미서명** | `PENDING` 구간 — 정상 상태 | ✅ 흔함 |
