@@ -117,9 +117,30 @@ null 로 흡수하고 항목은 살리므로, 서버가 결과 종류를 하나 
 3분기(결과 pill / 시계+텍스트 / **아무것도 안 그림**)로 정리하고 프리뷰로 고정했다. 빈 자리가 틀린
 자리보다 낫다.
 
+### 9. 🔴 실서버 원문 픽스처 — `/challenges/active` 에만 없던 구멍
+
+`GET /challenges/{id}` 와 `/verifications` 에는 실서버 원문 픽스처 테스트가 있는데
+**`/challenges/active` 에만 없었다.** 기존 `ActiveChallengeResponseMapperTest` 는 DTO 를 코드로
+조립해 매퍼만 검증하므로 **DTO 바인딩 층(JSON 키 이름·날짜 포맷·enum 문자열)이 통째로 사각지대**였다.
+backend 가 실서버 응답 원문을 넘기며 *"손으로 쓴 픽스처 말고 이걸 박아라"* 고 요청해 신설했다
+(`ActiveChallengeWireFixtureTest`, 9 tests). 근거는 이미 상세 쪽 파일 KDoc 에 적혀 있던 사건이다 —
+*"실서버에서 떴다는 사실이 대표 응답을 떴다는 뜻은 아니다."*
+
+원문 바이트 → 도메인까지 한 번에 통과시켜 고정한 것:
+- **IN_PROGRESS 와 COMPLETED 를 한 응답에** (이 목록은 정의상 두 상태가 섞여 오므로 한쪽만 덮으면 절반이 사각지대)
+- 🔴 **역할 기준 `result` 키를 앱이 모르는데도 파싱이 안 깨진다** — `ActiveChallengeDto` 에 그 필드가
+  없고 `ignoreUnknownKeys` 가 흡수한다. **끄면 홈이 통째로 죽는다**는 것을 `ignoreUnknownKeys = false`
+  로 `SerializationException` 을 실패 고정해 증명했다. 항목 하나 드롭이 아니라 전면 장애다
+- `myVerificationStatus = FAILED` 가 도메인까지 도달 — 이번 판정 feature 로 **처음 실제로 흐르기 시작한 값**
+- `IN_PROGRESS` 항목에도 `result`/`myResult` **키가 존재하고 값만 null**
+- 서버가 준 **순서 보존**, `droppedCount == 0`
+- 픽스처 2개 — backend 가 `myResult` 를 3값으로 접던 시점의 **원문 그대로**(하위호환 증거, `LOSE` 로
+  읽힘) + 4값 확정 후의 **현행 대표 응답**(`BOTH_LOSE`)
+
 ## 변경된 파일
 
-**신설 4**
+**신설 5**
+- `remote/mapper/src/commonTest/.../ActiveChallengeWireFixtureTest.kt` — **실서버 원문** 픽스처 (아래 §9)
 - `domain/model/.../challenge/ChallengeResult.kt` — `ChallengeResult`(역할 기준 4종) + `ChallengeOutcome`(내 시점 4종) + `outcomeFor(isMeOpponent)`
 - `domain/model/.../ActiveChallengeStatus.kt` — `IN_PROGRESS`/`COMPLETED` (홈 목록 전용 부분집합)
 - `feature/challenge/detail/.../contract/HeadlineDisplay.kt` — `HeadlineTone`, `HeadlineDisplay`, `ResultView`, `headlineDisplay()`
@@ -143,26 +164,26 @@ null 로 흡수하고 항목은 살리므로, 서버가 결과 종류를 하나 
 
 ## 테스트 결과 (실측 XML)
 
-**Android** (`testDebugUnitTest`) — **177 tests / 0 failures**
+**Android** (`testDebugUnitTest`) — **186 tests / 0 failures**
 
 | 모듈 | tests | failures | timestamp (UTC) |
 |---|---|---|---|
-| `:remote:mapper` | **91** | 0 | 07:07:03Z |
+| `:remote:mapper` | **100** | 0 | 07:28:45Z |
 | `:feature:challenge:detail` | **41** | 0 | 07:17:24Z |
 | `:feature:home` | **24** | 0 | 07:19:51Z |
 | `:feature:challenge:oath` | 17 | 0 | 07:19:42Z |
 | `:core:ui` | 4 | 0 | 07:17:18Z |
 
-**iOS** (`iosSimulatorArm64Test`) — **156 tests / 0 failures**
+**iOS** (`iosSimulatorArm64Test`) — **165 tests / 0 failures**
 
 | 모듈 | tests | failures | timestamp (UTC) |
 |---|---|---|---|
-| `:remote:mapper` | **91** | 0 | 07:19:53Z |
+| `:remote:mapper` | **100** | 0 | 07:28:47Z |
 | `:feature:challenge:detail` | **41** | 0 | 07:20:12Z |
 | `:feature:home` | **24** | 0 | 07:20:05Z |
 
-- Android 빌드: **ok** / iOS 빌드: **ok** (`BUILD SUCCESSFUL in 46s`)
-- 신규 테스트 **+30** (베이스라인 mapper 75 → 91, detail 31 → 41, home 20 → 24)
+- Android 빌드: **ok** / iOS 빌드: **ok**
+- 신규 테스트 **+39** (베이스라인 mapper 75 → 100, detail 31 → 41, home 20 → 24)
 - 🔴 **상세 41개가 T-M3 후에도 그대로** — `:core:ui` 승격이 겉보기 동작을 안 바꿨다는 증거다
 
 🔴 **iOS stale 오탐을 두 번 배제했다.** 이 레포는 iOS XML 이 오래 남아 있어 그냥 읽으면 통과로 오판한다.

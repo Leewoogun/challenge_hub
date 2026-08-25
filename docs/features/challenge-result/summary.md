@@ -41,7 +41,9 @@ COMPLETED 를 **판정 후 7일** 한시 노출한다.
 ## 테스트 결과
 
 - **백엔드: 392/392 passed** (437 중 통합 45 skip — 기존과 동일. 신규 72, 회귀 0)
-- **모바일: Android 177/177 + iOS 156/156** (신규 +59: mapper 91·detail 41·home 24 등, 회귀 0)
+- **모바일: Android 186/186 + iOS 165/165** (신규 +68: mapper 100·detail 41·home 24 등, 회귀 0.
+  마감 후 backend 요청으로 `ActiveChallengeWireFixtureTest` 9건 추가 — active 응답의 실서버 원문
+  픽스처가 유일하게 없던 구멍을 메움. `ignoreUnknownKeys` 를 끄면 홈이 통째로 죽는다는 것까지 실패 고정)
 - **실서버 실측 2회** (`:8081`, 사용자 `:8080` 무중단, DB 전량 원복):
   ① 마감 최대 21일 경과 실데이터로 **소급 판정 증명** — 기동 1회에 `judged=6, expired=2`, 마감 전 1건
   무변경, `notifications` **14→14**(알림 제외 검증), 재실행 `judged=0`+`user_stats` 해시 동일(멱등)
