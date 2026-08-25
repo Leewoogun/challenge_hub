@@ -110,9 +110,10 @@ T-B1 → T-B2 → T-B3
 - ~~무승부·양패의 streak 의미 — backend 제안 → 계약 명시~~ ✅ **stale 정정 (2026-08-25, result-mobile
   발견)**: **열린 쟁점이 아니다.** home-feed api-contract(`confirmed` v2, 2026-06-15)가 집계 규칙을 이미
   확정했다 — 결과 4종별 증감 + `currentStreak = win 만 연속, lose/draw/both_lose 시 0`. 앱이 그 위에
-  출시돼 있다(홈 StatsBar "연승" 라벨, `UserRecord` KDoc). **이 feature 는 그 계약의 이행**이며,
-  challenge-result 계약 §3 은 규칙을 재서술하지 않고 **"home-feed 계약 승계" 한 줄**로 참조한다
-  (두 곳에 쓰면 갈라진다)
+  출시돼 있다(홈 StatsBar "연승" 라벨, `UserRecord` KDoc). **이 feature 는 그 계약의 이행**이다.
+  ⚠️ 참조 방식은 두 안이 다퉜다 — result-mobile 은 재서술 금지("승계 한 줄"), pm-lead 최종 판정은
+  **표 사본 유지 + "어긋나면 home-feed 가 정본" 명시** (배치 구현 문서로서 표의 가치는 두되 드리프트
+  시 승자를 못박는 절충). 계약 §3.3 이 그 판정대로 작성됐다
 - **배치 실행 시각·재시도** — 자정 "직후"의 구체값(예: 00:05 KST), 실패 시 재시도 정책. T-B1 에서 결정
 - KST 자정 경계 — 서버 시계·`LocalDateTime` 비교는 ADR-0010 체계라 일관되나, 배치 스케줄 표현(cron)의
   타임존 명시 누락이 고전적 함정
