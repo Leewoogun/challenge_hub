@@ -2,6 +2,7 @@
 
 | feature-id | 제목 | 상태 | 완료일 | 링크 |
 |-----------|------|------|-------|------|
+| challenge-verification | 챌린지 인증 (즉석 촬영 → multipart 제출 → 상대 사진 확인 + 상세 화면 재구성) | completed (Android 실기. iOS 촬영은 실기기 필요. 계약 2차 개정: multipart + JWT 서빙) | 2026-08-25 | [📄](./challenge-verification/summary.md) |
 | push-deeplink | 푸시 알림 딥링크 (알림 탭 → 목적지 이동, 인증 게이트 + 트레이 중복 제거) | **implemented** (모바일 커밋 `d25e394`. 🔴 **서버 3파일 미커밋** + 실기 5케이스 전수 미확인) | 2026-08-08 | [📄](./push-deeplink/summary.md) |
 | push-fcm | 푸시 알림 (챌린지 신청·수락·거절 3종 + 토큰 등록 + logout 실구현) | completed (Android. iOS 수신은 Apple 계정 제약으로 범위 제외) | 2026-08-07 | [📄](./push-fcm/summary.md) |
 | soul-oath | 영혼의 맹세 (계약서 + 양측 서명 → `is_finalized` 시 `IN_PROGRESS`) | partially-completed (iOS 실기 미검증 / 주관 판단 3건) | 2026-08-03 | [📄](./soul-oath/summary.md) |

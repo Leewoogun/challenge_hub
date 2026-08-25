@@ -2,7 +2,7 @@
 
 - **feature-id**: challenge-verification
 - **작성일**: 2026-08-14
-- **상태**: `in-progress`
+- **상태**: `completed` (2026-08-25 — [summary.md](./summary.md))
 - **선행**: [soul-oath](../soul-oath/summary.md)(수락=서명 원자화로 `IN_PROGRESS` 진입) · [push-fcm](../push-fcm/summary.md)(알림 배관)
 - **결정**: [ADR-0011](../decisions/0011-photo-storage.md) — 사진은 서버 로컬 폴더 + `PhotoStorage` 포트
 
