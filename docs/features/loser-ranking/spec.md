@@ -2,7 +2,7 @@
 
 - **feature-id**: loser-ranking
 - **owner**: pm-lead
-- **상태**: draft
+- **상태**: completed (2026-08-26 — [summary.md](./summary.md))
 - **생성**: 2026-08-26
 - **선행**: [challenge-result](../challenge-result/summary.md) — 이 feature 가 소비하는 데이터
   (`user_stats` 의 `losses`·`current_loss_streak` + 집계 배관)를 그것이 완성했다
