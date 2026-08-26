@@ -79,6 +79,7 @@ Compose 매핑 제안: `:core:designsystem`에 `ChallengeShapes(small=8.dp, medi
 | Lovable 클래스 | px | lineHeight | 모바일 슬롯 (light/medium/bold) | 비고 |
 |---|---|---|---|---|
 | `text-[10px]` (커스텀) | 10 | 14 | `medium10` (+ 후보 `light10`/`bold10`) | Tailwind 비표준. **2026-05-12 Lovable 전수 점검 결과**: 총 21개 사용처(login·index·mypage·notifications·ranking·challenge-detail·challenge-new + BottomNav·ChallengeCard). weight별 분포 — `font-medium` 1건(BottomNav, ✅ 모바일 `medium10` 적용 완료) · `font-bold` 1건(login `text-[10px] font-bold tracking-widest uppercase` "한 번 서명하면 무를 수 없음" — bold10 슬롯 후보, **현재 모바일 LabeledDivider 기본 `bold12` 사용 — 정합 후보**) · `font-semibold` 4건(ChallengeCard×2/challenge-detail×2 status 뱃지 — §5.3에 따라 Medium 매핑 → `medium10`) · weight 미지정(=`font-normal`) 15건(index 통계/mypage 캘린더·desc/notifications 시간/ranking 캡션/challenge-detail "내기"·"서명"/challenge-new SOUL CONTRACT/login 약관 풋터 — §5.3에 따라 Light 매핑 → `light10` 후보, **현재 모바일 FooterAgreementText `light12` 사용 — 정합 후보**). 본 슬롯은 BottomBar 라벨용으로 신설됐으나, `light10`/`bold10`은 후속 feature 진입 시 추가 필요. |
+| `text-[11px]` (커스텀) | 11 | — | **`medium12` 로 근사** (전용 슬롯 없음) | Tailwind 비표준. **2026-08-26 loser-ranking 작업 중 전수 점검**: 총 15개 사용처(9개 route/component) — `challenge-new` 5 · `index` 2 · `ChallengeCard` 2 · `friends`·`login`·`mypage`·`oath`·`ranking`·`SignaturePad` 각 1. **11sp 슬롯을 신설하지 않는다** — 이미 `medium12` 근사로 출시돼 있고(`ChallengeCard.kt:182` 가 `// design.md: text-[11px] → medium12 근사` 주석과 함께), 1px 차이를 위해 슬롯을 늘리면 10/11/12sp 세 슬롯이 육안 구분 없이 공존한다. weight 별 분포 — `font-bold` 1건(login `text-[11px] font-bold tracking-widest uppercase` "SOUL CONTRACT") · `font-medium` 1건(mypage 캘린더 셀) · 나머지 13건 weight 미지정(=`font-normal`, §5.3 상 Light 매핑이 원칙이나 **`medium12` 통일**이 현행). ⚠️ 이 행은 "슬롯"이 아니라 **근사 규약**의 기록이다 — 새 화면에서 `text-[11px]` 을 만나면 inline `TextStyle` 을 만들지 말고 `medium12` 를 쓴다. |
 | `text-xs` | 12 | 16 | `light12` / `medium12` / `bold12` | Tailwind 기본 |
 | `text-sm` | 14 | 20 | `light14` / `medium14` / `bold14` | Tailwind 기본. 이전 22 → 20 정합 |
 | `text-base` | 16 | 24 | `light16` / `medium16` / `bold16` | Tailwind 기본 |
@@ -153,7 +154,18 @@ Compose 매핑 제안: `ChallengeSpacing(xs=4, sm=8, md=12, lg=16, xl=24, xxl=32
 2. **Kakao hover 값 `#FDD835`**: 카카오 공식 가이드에는 hover 스펙이 없음. 모바일에서는 ripple로 대체할지, pressed 색을 맞출지 확인.
 3. **폰트 패밀리 불일치 (Pretendard ↔ GmarketSans)**: 디자인 의도는 Pretendard. 모바일은 현재 GmarketSans 번들. 어느 쪽으로 통일할지 결정. iOS 앱 스토어 심사 / 라이선스 표기는 Pretendard 채택 시 함께 처리.
 4. **Glow shadow**: CSS의 발광 효과를 Compose에서 Canvas로 흉내낼지, 생략할지 — 성능/비주얼 균형 결정 필요.
-5. **차트 5색**: 현재 랭킹 기능 등에 쓰일지 불확실. 실제 사용처 확인 후 토큰 유지/제거.
+5. ~~**차트 5색**: 현재 랭킹 기능 등에 쓰일지 불확실. 실제 사용처 확인 후 토큰 유지/제거.~~
+   ✅ **2026-08-26 마감 — 모바일 슬롯 미생성 확정.** 이 항목이 기다리던 *"실제 사용처"* 의 마지막 후보가
+   **랭킹이었는데, 랭킹에 차트가 없다** — `ranking.tsx` 116줄 전체에 차트 요소 0건이고, 그 화면이 쓰는 색은
+   `error`/`warning`/`onSurfaceVariant`/`primary` 뿐이다([loser-ranking/design.md §6.0](../features/loser-ranking/design.md)).
+   **Lovable `--chart-1~5` CSS 변수와 `ChallengeColorScheme.chart1~5` 슬롯은 잔존한다**(§1.6 · colors.md §1.6) —
+   삭제하지 않고 **미사용으로 확정**만 한다. 값은 이미 다른 슬롯의 별칭이라(chart1=primary · chart2=success ·
+   chart3=error · chart5=warning, 고유값은 `chart4` 하나뿐) 유지 비용이 사실상 없다.
+
+   **되살아날 조건**: **월별 달성 캘린더**([기획 §3.2 전적 및 통계](../product/notion-planning-snapshot-2026-08-06.md) —
+   *"날짜별 챌린지 성공/실패 시각화"*)가 착수되고, **그 디자인이 다색 시각화를 쓸 때**.
+   ⚠️ 다만 기획 문면이 **성공/실패 2값**이라 그때도 기존 `success`/`error` 로 충분할 가능성이 높다 —
+   **다색이 실제로 필요하다는 디자인이 먼저 나온 뒤에** 이 항목을 다시 연다. 예상만으로 열지 않는다.
 6. **Typography 22sp 슬롯**: 디자인엔 없으나 모바일 호출부 보호로 유지 중. 호출부 정리 후 제거 검토.
 7. **bold48 lineHeight 60→48 변경**: Lovable `leading-none` 의도 반영. LoginScreen / SplashScreen 대제목 멀티라인 케이스에서 시각 검증 필요.
 8. **NormalButton (medium14, lineHeight 22→20)**: 멀티라인 라벨 시 미세 변화 가능. 단일 라인이 일반적이라 영향은 미미할 것으로 예상.
@@ -169,4 +181,6 @@ Compose 매핑 제안: `ChallengeSpacing(xs=4, sm=8, md=12, lg=16, xl=24, xxl=32
 | 2026-04-30 | 컬러 섹션을 colors.md 링크로 단순화. Lovable 기준 통합 1차 반영. | design-bridge |
 | 2026-05-04 | (1) 컬러 섹션 — `ChallengeExtendedColors` 폐지 + `ChallengeColorScheme` 단일 진입점 반영. (2) 타이포그래피 섹션 5 — Tailwind 기본 스케일과 모바일 `ChallengeTypoGraphy` 슬롯(light/medium/bold × 12/14/16/18/20/22/24/30, bold48) 매핑 표 신설. fontWeight 매핑 정책 명시(GmarketSans 3종 자산 한계). lineHeight 변경 4건(14: 22→20, 18: 26→28, 48: 60→48) 기록. 폰트 패밀리 Pretendard↔GmarketSans 불일치 §8에 ADR 후보로 등재. | design-bridge + mobile-dev |
 | 2026-05-12 | `medium10` 슬롯 신설 (BottomBar 라벨용, Lovable `text-[10px]`, lineHeight 14). bottom-navigation feature 종료 후 결정 변경(design.md ✅ #6 inline → 슬롯). `light10`/`bold10`은 사용처 발생 시 추가. | pm-lead + mobile-dev |
+| 2026-08-26 | **§8-5 차트 5색 마감** — 모바일 슬롯 미생성 확정. 이 항목이 기다리던 "실제 사용처"의 마지막 후보가 랭킹이었는데 `ranking.tsx` 116줄에 차트 요소 0건이라 후보가 소멸했다. 행을 삭제하지 않고 **마감 사유 + 되살아날 조건**(월별 달성 캘린더가 착수되고 그 디자인이 다색 시각화를 쓸 때)을 남기는 형태로 닫았다. ⚠️ 기획 §3.2 문면이 "성공/실패" 2값이라 그때도 기존 `success`/`error` 로 충분할 가능성이 높다는 점을 함께 기록 — 예상만으로 다시 열지 않는다. pm-lead 판정. | design-bridge |
+| 2026-08-26 | **§5.2 에 `text-[11px]` 행 신설.** `text-[10px]` 은 21개 사용처까지 전수 등재돼 있었으나 **11px 만 표에 행이 없었다** — 모바일이 이미 `medium12` 근사로 처리 중인데(`ChallengeCard.kt:182` 주석) 그 근거가 코드 주석에만 살아 있어 화면마다 재발견되는 상태였다. 실측 15개 사용처(9개 route/component) + weight 분포(`font-bold` 1 / `font-medium` 1 / 미지정 13) 등재. **11sp 슬롯은 신설하지 않는다** — 10/11/12sp 가 육안 구분 없이 셋 공존하게 된다. loser-ranking `design.md` §6.1 작업 중 도출. | design-bridge |
 | 2026-05-12 | **Lovable 전수 점검 + 10sp 슬롯 인벤토리 보강**. `text-[10px]` 21개 사용처(9개 route/component)를 §5.2 `medium10` row 비고에 weight별 분류(`font-medium` 1 / `font-bold` 1 / `font-semibold` 4 / 미지정 15)로 등재. §5.2 표 아래 "10sp 슬롯 정책" 단락 신설 — 향후 모든 10sp 라벨은 본 슬롯 사용. 정합 후보 2건 확인: LoginScreen LabeledDivider `bold12` → `bold10` / FooterAgreementText `light12` → `light10`(Lovable 일치). backlog.md에 mobile 후속 작업으로 등재. | design-bridge |

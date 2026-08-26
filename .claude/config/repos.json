@@ -31,7 +31,7 @@
       "2026-05-28: ADR-0009 Refresh Token Rotation accepted. users 테이블에 refresh_token_hash VARCHAR(64) + refresh_token_issued_at TIMESTAMP 추가 (V3). POST /api/v1/auth/refresh 응답에 data.refreshToken 신규 필드 — 매 refresh 마다 access+refresh 둘 다 발급, sha256 hash로 옛 refresh 즉시 무효화. ADR-0002의 code=401 의미 세분화: 일반 API 401(=access 만료, Ktor Auth 자동 갱신) vs /auth/refresh 401(=refresh 만료/hash 불일치, 강제 재로그인). 모바일은 Ktor Auth(bearer) 플러그인으로 401 처리 일원화. 1기기 1세션 자연 강제. logout 엔드포인트는 hash NULL화 자리만 마련 (별도 feature)."
     ],
     "api_convention": {
-      "error_model": "Always HTTP 200. Body follows BaseResponse pattern. code=200 success, code=700/701/702/703/705 business errors by UI treatment, code=401 token expired (일반 API=access 만료 자동 갱신, /auth/refresh=refresh 만료 강제 재로그인 — ADR-0009).",
+      "error_model": "비즈니스 에러는 Always HTTP 200 + BaseResponse code(700/701/702/703/705 by UI treatment). ⚠️ 단 인증 실패는 예외 — 실측(2026-08-26): Security 필터 단계의 UnauthorizedEntryPoint가 bare HTTP 401을 쓴다(body code 아님). 모바일 Ktor Auth(bearer)의 자동 갱신이 HTTP 401에 반응하므로 이게 정합(ADR-0009: 일반 API 401=access 만료 자동 갱신, /auth/refresh 401=강제 재로그인). ADR-0002 실측 정정 각주 참조.",
       "base_response_source": "/Users/hwamulman/hwamulman-workspace/CarOwnerRenew/remote/model/src/main/kotlin/ktc/cargo/driver/remote/model/base/BaseResponse.kt",
       "api_code_source": "/Users/hwamulman/hwamulman-workspace/CarOwnerRenew/remote/datasource/src/main/kotlin/ktc/cargo/driver/remote/datasource/apiResult/ApiCode.kt",
       "server_dto_pattern": "data class XxxResponse(val data: XxxData) : BaseResponse()",
