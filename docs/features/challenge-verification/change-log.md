@@ -306,3 +306,124 @@ challenge 18 에서 테스터3(userId 16, challenger)이 제출
 
 ⚠️ **서버의 `maxBytes` 상한은 그대로 유지한다.** 앱이 아닌 클라이언트가 이 URL 로 올 수 있으므로
 앱을 신뢰해서 없앨 수 있는 값이 아니다.
+
+---
+
+# 2026-08-26 — `photoDeleted` 필드 추가 (mypage feature 발원, additive)
+
+- **변경 주체**: backend-dev (mypage-backend) · 요구는 design(mypage design.md §7-⑤)
+- **대상**: `GET /api/v1/challenges/{id}/verifications` — party 객체
+- **성격**: 🟢 **additive.** 기존 필드의 이름·타입·의미 변화 **0건.** 앱 무변경으로도 안 깨진다.
+
+## 무엇이
+
+party 객체(`challenger` / `opponent`)에 **`photoDeleted: Boolean`** 추가. non-null, 기본 `false`.
+
+```json
+"challenger": {
+  "userId": 7, "status": "VERIFIED", "photoUrl": null,
+  "photoDeleted": true,
+  "verifiedAt": "2026-08-12 21:30:00"
+}
+```
+
+서버 판정: `status == VERIFIED && photoUrl == null && 그 사람이 탈퇴(DELETED) 상태`.
+
+## 왜 — mypage 회원탈퇴가 **새 조합을 만들었다**
+
+mypage T-B2(회원탈퇴)의 정책이 *"익명화 + 기록 보존 + 사진 삭제"* 다. `verifications` **row 는
+보존**하되(그 사람이 그날 인증했다는 사실은 **상대의 증거**다) **사진 파일과 `photo_url`(key)만
+지운다.** 그래서 이 feature 가 만들지 않던 조합 — **`VERIFIED` 인데 `photoUrl == null`** — 이
+처음으로 생겼다.
+
+🔴 이 feature 의 `VerificationService.view()` 에는 *"VERIFIED 인데 key 가 없는 조합은 서버가
+만들지 않는다"* 는 주석이 있었다. **mypage 가 그 문장을 거짓으로 만들었고, 함께 정정했다.**
+
+## 왜 `photoUrl == null` 만으로 부족한가 — 실측
+
+`challenge-app` 의 `VerificationPhoto.kt`:
+
+```kotlin
+// 인증은 됐는데 URL 이 없는 건 정상 경로가 아니다. 빈 칸으로 두면 원인 없는 공백이 되므로
+// 로드 실패와 같은 문구로 드러낸다(재시도할 대상 URL 이 없어 버튼은 붙이지 않는다).
+photoUrl == null -> PhotoMessage(LOAD_FAILED_TEXT)   // "사진을 불러오지 못했어요"
+```
+
+그 자리는 **이미 "진짜 데이터 이상"이라는 다른 뜻**으로 쓰이고 있다. 삭제된 사진이 그 문구를
+빌려 쓰면 둘이 생긴다:
+
+1. **영구·정상 종결 상태를 일시적 실패의 어휘로 말한다.**
+2. 🔴 **진짜 데이터 이상이 탈퇴자 뒤에 숨는다.** — 이쪽이 채택의 결정적 근거다.
+
+## ⚠️ design 의 근거 하나를 실측으로 정정하고 채택했다
+
+design 은 이 항목을 **blocking** 으로 올리며 *"절대 성공하지 않는 '다시 시도' 버튼이 영구히
+뜬다"* 를 근거로 들었다. **그 시나리오는 발생하지 않는다** — 위 분기는 `PhotoMessage` 이지
+`PhotoRetryMessage` 가 아니라 **버튼이 없고**, 서버가 파일과 함께 `photo_url`(key)까지 NULL 로
+지우므로 Coil 의 error 슬롯(재시도 버튼이 붙는 자리)으로도 가지 않는다.
+
+재시도 버튼 문제는 **서버가 key 를 non-null 로 남긴 채 파일만 지웠을 때**의 이야기이고,
+그렇게 하지 않는다. 따라서 **blocking 이 아니라 문구 정확성 개선**이다 —
+그래도 위 근거 2번만으로 값어치가 충분해 채택했다.
+
+## 앱 분기
+
+| status | photoUrl | photoDeleted | 표시 |
+|---|---|---|---|
+| VERIFIED | non-null | false | 사진 |
+| VERIFIED | null | **true** | **"탈퇴한 사용자의 사진은 삭제됐어요"** (재시도 버튼 없음) |
+| VERIFIED | null | false | 기존 그대로 — 진짜 데이터 이상 |
+| PENDING / FAILED | null | false | 기존 그대로 |
+
+## 🔴 왜 `isWithdrawn` 이 아닌가
+
+앱이 **"왜"가 아니라 "뭘 그릴지"만 받게 하기 위해서다.** design 은 같은 문서에서 보관함 카드에
+`isWithdrawn` 플래그를 **명시적으로 거부**했다 — 받으면 쓰게 되고, 쓰면 카드에 특별 표시가
+붙는데 **증거 보존 화면에서 그건 *"이 기록은 무효"* 로 읽힌다.** 같은 함정이 여기도 걸린다.
+`photoDeleted` 는 **사진 자리 하나만** 바꾸고 아바타·톤·뱃지에는 쓸 수 없다.
+
+## 구현 영향
+
+- `VerificationService.getVerifications` 가 양측 user 를 조회한다 — **쿼리 2 → 3.**
+  `ChallengeDetailService` 가 이미 같은 조회를 하고 있어 새 패턴은 아니다.
+- 사진 직접 요청 `GET /challenges/{id}/photos/{party}` 는 **코드 변경 0** —
+  `readPhoto` 가 `verification.photoUrl ?: return NotFound` 라 이미 404 로 떨어진다.
+
+## 관련
+- [mypage api-contract §2](../mypage/api-contract.md)
+- [mypage design.md §2.5.2.1 · §7-⑤](../mypage/design.md)
+
+## 🔴 봉인이 **사라진 게 아니라 조건이 하나 붙었다**
+
+이 feature 의 계약에는 *"`VERIFIED` 인데 `photoUrl` 이 null 인 조합은 서버가 만들지 않는다"* 는
+봉인이 있었다. 이번 변경이 그걸 **조건부로 바꾼다** — 폐기하는 것이 아니다.
+
+| 조합 | 서버가 만드는가 |
+|---|---|
+| `VERIFIED` + `photoUrl == null` + **`photoDeleted == true`** | ✅ **만든다** (탈퇴) |
+| `VERIFIED` + `photoUrl == null` + **`photoDeleted == false`** | 🔴 **여전히 만들지 않는다** |
+
+🔴 **두 번째 줄이 이 항목의 요점이다.** 그 조합은 지금도 *"인증은 됐는데 URL 이 없는 비정상"*
+이고, 앱의 `VerificationPhoto.kt:78` 분기는 **일부러 만들어 둔 데이터 이상 감지기**다
+(그 파일 KDoc: *"실패를 조용히 빈 칸으로 삼키면 그 사고가 QA 를 그대로 통과한다"*).
+
+⚠️ **다음 사람에게**: 이 change-log 를 *"봉인이 풀렸다"* 로 읽고 `:78` 분기를 지우지 마라.
+지우면 이후의 URL 유실 버그가 *"탈퇴한 사용자의 사진은 삭제됐어요"* 로 표시되고 **아무도 못
+본다.** 감지기를 끄는 것과 새 상태를 추가하는 것은 다른 일이고, 우리는 후자만 했다.
+
+### 왜 "조합 재정의" 로 가지 않았나 (검토 후 기각)
+
+`VERIFIED + photoUrl == null` 의 **뜻 자체를** *"인증 유효, 사진 삭제됨"* 으로 계약에서 다시
+정의하면 신규 필드 0으로 풀린다는 안이 있었고, 한때 그 방향이 우선 검토 지시였다.
+**기각됐다** (pm-lead 최종 판정). 근거 둘:
+
+1. **그건 감지기를 끄고 그 자리에 정상 상태를 놓는 것이다.** 위 표의 두 번째 줄이 사라진다.
+2. 🔴 **`confirmed` 계약에서 의미 변경이 additive 보다 위험하다.**
+
+| | 기존 소비자에게 일어나는 일 |
+|---|---|
+| 조합 재정의 | shape 이 그대로라 **아무 신호 없이 계속 틀린 뜻으로 읽는다.** 컴파일·스키마 검증 둘 다 통과한다 |
+| `photoDeleted` 추가 | 모르면 무시하고 **기존 동작 유지** |
+
+*"신규 필드 0"* 이 싸 보이지만 **비용이 계약 표면이 아니라 관측 가능성에서 나간다.**
+게다가 두 안 모두 이 change-log 등재가 필요하므로 비용 차이가 크지도 않았다.
