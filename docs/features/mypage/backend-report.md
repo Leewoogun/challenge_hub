@@ -1,8 +1,192 @@
 # Backend Report — mypage
 
-- **작성**: 2026-08-26 backend-dev (mypage-backend)
+- **작성**: 2026-08-26 backend-dev (mypage-backend) → **2026-08-28 개정분 추가 (archive-month-backend)**
 - **레포**: `challenge-server` (main, **커밋 0건** — 워킹트리 상태로 인계)
-- **관련**: [spec.md](./spec.md) · [api-contract.md](./api-contract.md) (`confirmed`) · [design.md](./design.md)
+- **관련**: [spec.md](./spec.md) · [api-contract.md](./api-contract.md) · [change-log.md](./change-log.md) · [design.md](./design.md)
+
+---
+
+# 🔴 2026-08-28 개정 — 보관함 월 단위 조회 (T-B1 v2)
+
+**아래 "1차" 절들은 2026-08-26 시점의 기록이다.** 이 절이 그 위에 얹힌 변경분이며,
+`GET /challenges/history` 에 대해서는 **이쪽이 현행**이다. 탈퇴(T-B2)·로그아웃(T-B3)·
+`photoDeleted` 는 이번에 손대지 않았다.
+
+## 무엇이 바뀌었나
+
+`GET /api/v1/challenges/history` 가 **전체 반환 → 한 달치 조회**가 됐다.
+사용자 확정(spec §후속 개정): 월 1칸 이동 · 빈 달 통과 · 첫 진입 이번 달 · 미래 달 금지.
+계약 shape 변경 상세는 [change-log.md](./change-log.md) 2026-08-28 항목.
+
+```
+GET /challenges/history?month=2026-08     ← optional. 생략 시 서버 KST 이번 달
+data: { month, firstArchivedMonth, histories: [...카드 7필드 그대로...] }
+```
+
+## 핵심 설계 결정 4건
+
+### 1. 🔴 두 경계가 **모두 서버 값**이다 — 앱은 기기 시계를 읽지 않는다
+
+| | 앱이 어디서 얻나 |
+|---|---|
+| **상한** (이번 달) | 파라미터 없이 부른 **첫 응답의 `month` 에코** |
+| **하한** | `firstArchivedMonth` |
+
+앱이 상한을 기기 시계로 계산하면 서버가 준 하한과 **다른 시계에서 나온 두 경계**가 된다.
+기기 타임존이 KST 가 아니면 월말·월초에 한 달 어긋나고, 증상은 **`>` 가 잠긴 채 이번 달 기록이
+안 보이는** 형태다. ADR-0010 이 프로젝트를 KST 로 고정했지만 **사용자 기기 시계는 그 규약 밖**이다.
+이 레포는 이미 `DeadlineType`/`KstDeadlineCalculator` 에서 *"기기 시계 조작·타임존 불일치를
+차단하고 마감 기준을 서버로 일원화"* 를 규약으로 박아 뒀고, 같은 판단이다.
+
+🔴 **`month` 파라미터를 optional 로 둔 것이 이 결정의 실행 수단이다** — 앱의 첫 요청에 월이
+없으므로 첫 달도 서버 시계에서 나온다. `ChallengeHistoryService` 가 `Clock` 을 주입받게 됐다
+(레포 전역 규약 — `KstTime` KDoc).
+
+`month` 에코는 두 번째 일도 한다: **응답 경합 방어.** 빈 달을 건너뛰지 않는 확정 때문에 화살표
+연타가 정상 사용이고 요청 겹침도 정상이라, 늦게 도착한 옛 응답이 현재 월 표시 아래 다른 달
+카드를 그릴 수 있다. 1차(1회 조회)에는 없던 표면이다.
+
+### 2. 🔴 하한은 **절대값 `firstArchivedMonth`.** 불리언 2개는 협의로 뒤집혔다
+
+**값 자체**는 최초 `COMPLETED` 기록의 월이다. 후보 ① 무한 ② 가입월(`users.created_at`)
+③ 최초 기록월 중 ③:
+
+- 하한의 목적은 *"확정적으로 빈 달의 사막으로 걸어 들어가지 않게 한다"* 이다. ③ 아래는
+  **0건이 보장**된다. ②는 가입~첫 기록 사이의 빈 달을 열어 둬 목적을 절반만 이룬다.
+- ①은 화살표가 영원히 살아 있어 *"더 뒤에 있나"* 를 확인할 방법이 없다. **보관함은
+  *"이게 네 기록 전부다"* 라고 주장하는 화면**인데(design §2.5.4.2) 하한이 없으면 화면이 그
+  주장을 할 수 없다.
+- 🔴 **기록 0건이면 `null`** — 그게 곧 *"보관함이 통째로 비었다"* 신호이고, 앱이 이걸로
+  **빈 달 화면**과 **기록 전무 화면**을 가른다(후자만 *"챌린지 만들기"* CTA. 전자에 CTA 를
+  띄우면 기록을 찾는 중인 사용자를 보관함 밖으로 내보낸다).
+- **하한은 내려가지 않는다.** `challengeDate` 는 생성 시점의 오늘/내일이고 `COMPLETED` 는 마감
+  후 상태라 새 기록은 항상 기존 최소값보다 뒤다 — 죽은 화살표가 되살아나지 않는다.
+
+🔴 **형태는 내 초안이 틀렸다.** v2 는 `hasPrevious`/`hasNext` 불리언 2개였는데,
+archive-month-design(§2.1.2)·archive-month-mobile 이 **독립적으로 같은 반례**로 기각했다:
+사용자 확정(*"빈 달도 건너뛰지 않는다"*) + design §2.5.4.3-①(*"월 전환 중에도 화살표는 계속
+눌린다"*) 때문에 **연타가 정상 사용**인데, 불리언은 **그 달의 응답이 와야** 그 달의 경계를
+알려준다 — 하한 5월에서 6월→탭→5월(in flight)→탭→**4월**이 되고, 그제서야 `hasPrevious=false`
+가 도착한다. **경계를 넘은 뒤에 경계를 통보받는다.** `>` 쪽은 한술 더 떠 미래 달 요청 →
+code 700 이라 **정상 조작이 오류 화면**이 된다.
+
+⚠️ **내 오류의 성격을 적어 둔다** — *"불리언이 신호가 하나라 더 적다"* 며 `result`+`myResult`
+유추를 걸었는데, **여기서 불리언은 절대값의 손실 있는 투영**이지 경쟁하는 두 표현이 아니다.
+절대값 하나만 주므로 경쟁하는 신호도 없다(design 은 별도 `earliestMonth` 필드 추가를
+명시적으로 금지했다 — `firstArchivedMonth` 가 곧 그 값이다).
+
+`MIN(challenge_date)` 쿼리 1개가 늘어 **쿼리가 2 → 3**이 됐다(빈 달은 users 조회를 건너뛰어 2).
+🔴 **`EXISTS(< monthStart)` 로 안 짠 것이 결과적으로 맞았다** — 같은 인덱스 스캔으로 가장
+오래된 달 자체를 얻어 두었기 때문에, 계약이 절대값으로 뒤집혔을 때 **쿼리를 다시 설계하지
+않고 불리언으로 접던 한 줄만 지우면 됐다.**
+
+
+### 3. 🔴 미래 달·형식 오류 = **code 700 (HTTP 200)**. clamp 하지 않는다
+
+조용히 이번 달로 clamp 하면 응답의 `month` 에코가 요청과 달라져 **앱 화면의 월 표시와 카드
+내용이 어긋난다.** 정상 경로에서는 발생하지 않는다 — 앱은 첫 응답의 `month` 에코를 상한으로
+삼아 `>` 를 죽인다. **안전망이다.**
+
+🔴 **하한 아래는 에러가 아니다** — 빈 달로 정상 응답하고 `firstArchivedMonth` 는 평소와 같은
+값이 실린다(사용자 전역 값이라 요청 월과 무관하다). 비대칭인 이유: **미래는 데이터가 존재할 수
+없는 구간(좌표계 밖)**, **과거는 존재할 수 있었지만 없는 구간(정상적인 빈 달)** 이다.
+
+### 4. ⚠️ `month` 를 `YearMonth` 가 아니라 **`String` 으로 받는다** — 이게 없으면 HTTP 500 이다
+
+`@RequestParam month: YearMonth?` + `@DateTimeFormat` 으로도 바인딩은 되지만, 형식이 틀리면
+Spring 이 `MethodArgumentTypeMismatchException` 을 던진다. **`GlobalExceptionHandler` 에 그
+핸들러가 없어서** `handleUncaught` 로 떨어지고 **HTTP 500 + code=500** 이 나간다 —
+클라이언트가 잘못 보낸 쿼리 파라미터 하나가 서버 장애로 보고된다 (ADR-0002: 5xx 는 인프라 장애
+전용). 전역 핸들러를 새로 추가하면 **다른 모든 엔드포인트의 타입 불일치 응답까지 바뀌므로**
+이 개정이 열 범위가 아니다. → 계약 §5 백로그 등재.
+
+## 변경된 파일 (개정분)
+
+**수정 8** — 신규 파일 0, **마이그레이션 0**
+
+| 파일 | 변경 |
+|---|---|
+| `infra/jpa/.../ChallengeJpaRepository.kt` | `findCompletedHistoryByUser` → `findCompletedHistoryByUserInMonth`(반개구간) + `findEarliestCompletedChallengeDate`(`MIN`) 신규 |
+| `domain/repository/.../ChallengeRepository.kt` | 위 둘의 인터페이스 + KDoc |
+| `infra/repositoryimpl/.../ChallengeRepositoryImpl.kt` | 위임 2개 |
+| `service/.../ChallengeHistoryService.kt` | `Clock` 주입, 월 범위 + 하한 산출, `ChallengeHistoryPage` 신규. **카드 산출 로직은 무변경** |
+| `controller/.../ChallengeHistoryController.kt` | `?month=` 수용 + `parseMonth` |
+| `controller/.../dto/ChallengeHistoryResponse.kt` | `ChallengeHistoryListData` → `ChallengeHistoryMonthData`(3키: `month`·`firstArchivedMonth`·`histories`). **`ChallengeHistoryDto` 무변경** |
+| `controller/common/WireDateTimeFormat.kt` | `WIRE_MONTH = "yyyy-MM"` 신규 |
+| 테스트 7 | 아래 참조 |
+
+🔴 **DB 마이그레이션이 없다.** 스키마 변경 0 — 기존 `challenge_date` 컬럼에 범위 조건이 붙었을
+뿐이고, 인덱스도 기존 `idx_challenges_challenger_status`/`_opponent_status` 를 그대로 탄다.
+
+## 테스트 결과 (개정분)
+
+| 시점 | tests | passed | skipped | failures |
+|---|---|---|---|---|
+| 기준선 (1차 최종) | 513 | 464 | 49 | 0 |
+| v2 (불리언 2개) | 533 | 484 | 49 | 0 |
+| **v3 최종 (절대값)** | **534** | **485** | **49** | **0** |
+
+**회귀 0. 신규 21건** — `ChallengeHistoryServiceTest` +14(월 범위 4 · 기본값 2 · 하한 5 ·
+미래 달 3), `ChallengeHistoryControllerTest` +6(`month` 전달 2 · 형식 오류 2 · 빈 달 1 ·
+**`firstArchivedMonth` null 키 잔존 1**), `WireShapeContractTest` +1(빈 달 3키) — v3 에서
+**null 직렬화 단언 2건이 늘었다.**
+
+수정된 fake 5곳(`ActiveChallengeServiceTest`·`ChallengeCommandServiceTest`·`WithdrawalServiceTest`·
+`VerificationServiceTest`·`JudgementFakes`)은 인터페이스 변경에 따른 시그니처 교체뿐이다.
+
+skip 49 는 **기존 블로커**(Docker 부재) — 이번 작업이 늘린 것이 아니다.
+
+## 🔴 실구동 검증 — **단위 테스트가 새 JPQL 을 한 줄도 실행하지 않는다**
+
+smoke test 가 JPA 를 auto-configuration 에서 제외하고 repository 를 전부 mock 으로 세운다.
+즉 통과한 534건 중 **어느 것도 반개구간 범위 조건이나 `MIN` 집계를 실제 DB 에 대고 실행하지
+않는다.** fake 가 같은 규칙을 다시 구현할 뿐이라, 구현과 fake 가 **함께 틀리면** 전부 통과한다.
+
+그래서 throwaway DB + 포트 **8089** 로 확인했다 (v2·v3 각 1회, 총 2회).
+**`:8080` 과 공용 `challenge` DB 는 건드리지 않았고** 끝난 뒤 전부 정리했다. 아래는 v3 최종분.
+
+| # | 검증 | 결과 |
+|---|---|---|
+| 0 | Flyway V1→V11 + `ddl-auto=validate` + 새 JPQL 파싱 (컨텍스트 기동) | ✅ `now at version v11`, 기동 성공 |
+| 1 | 파라미터 없이 호출 → `month=2026-08`(서버 KST 이번 달), 8월 것만 | ✅ |
+| 2 | 같은 날 2건 `id DESC` (107 → 106) | ✅ |
+| 3 | `myResult` 뒤집기 — 내가 opponent 인 `CHALLENGER_WIN` → `LOSE` | ✅ |
+| 4 | `BOTH_LOSE` 안 접힘 | ✅ |
+| 5 | 🔴 **월 경계** — `?month=2026-06` 이 6/1·6/30 포함, **5/31·7/1 제외** | ✅ `[103, 102]` |
+| 6 | 🔴 **2월 경계** — 2/28 포함, 3/1 제외 (말일 계산 없이) | ✅ user3 `[120]` |
+| 7 | 🔴 **`firstArchivedMonth` 가 어느 달에서 봐도 같다** — 8월·6월·4월·3월·2025-01 전부 `"2026-03"` | ✅ |
+| 8 | `?month=2026-04`(빈 달) → `[]` + 하한 그대로 | ✅ |
+| 9 | 🔴 **하한이 `COMPLETED` 만 센다** — 1월 `EXPIRED`·2월 `IN_PROGRESS` 가 하한을 못 민다 | ✅ `2026-03` 유지 |
+| 10 | 🔴 **남의 챌린지가 내 하한을 못 민다** (제3자 2/28 건이 있는데 내 하한은 3월) | ✅ |
+| 11 | 🔴 **하한 아래**(`2026-02`·`2025-01`) → 에러 아님, `[]` + 하한 그대로 | ✅ |
+| 12 | 🔴 **기록 0건 사용자** → `firstArchivedMonth: null` | ✅ |
+| 13 | 🔴 **null 이어도 키가 원문에 남는다** (`@JsonInclude(NON_NULL)` 부재 실증) | ✅ `"firstArchivedMonth":null` |
+| 14 | 미래 달(`2026-09`) → **HTTP 200 + code 700** | ✅ |
+| 15 | 형식 오류(`2026-8`) → **HTTP 200 + code 700** | ✅ |
+| 16 | `?month=`(빈 문자열) → 이번 달 | ✅ |
+| 17 | 🔴 `month`·`firstArchivedMonth` 가 **문자열** (`[2026,6]` 배열 아님) | ✅ 원문 확인 |
+| 18 | 금지 필드 부재 — `result`·인증상태 2필드·`isWithdrawn`·**`hasPrevious`/`hasNext`** | ✅ 전부 0건 |
+| 19 | 인증 없이 호출 → HTTP 401 | ✅ |
+| 20 | OpenAPI — `month` 쿼리 파라미터 + `data` 3키 + `required: ["histories","month"]`(= `firstArchivedMonth` 는 optional) | ✅ |
+
+정리 완료 확인: throwaway DB 2개 모두 drop / 8089 프로세스 종료 / 스크래치 삭제 /
+공용 `challenge` DB 에 seed id(100~121) **0건** / `:8080` 정상(401) 응답.
+
+## 미해결 (개정분)
+
+- ⚠️ **`MethodArgumentTypeMismatchException` 전역 핸들러 부재** — 보관함은 문자열 파싱으로
+  우회했지만 다른 엔드포인트가 타입 있는 파라미터를 쓰면 같은 구멍이 열린다. 계약 §5 백로그.
+- ✅ **백로그 "페이지네이션 부재" 항목 철회** — pm-lead 반영 완료 (🟡→🟢 하향).
+- 🔴 **`말일 챌린지` 축의 자동화 공백** — mobile 이 앱측 버킷팅과 그 회귀 테스트를 지우게 되므로
+  서버 테스트가 유일한 방어라고 요청했다. `ChallengeHistoryServiceTest.판정 시각이 아니라
+  챌린지 날짜로 월을 자른다` 가 **양방향으로**(7월 응답에 있고 8월 응답에 없다) 고정하지만,
+  그건 **fake 를 태우는 단위 테스트**라 JPQL 축은 못 덮는다. 실제 SQL 축은 위 검증 #5(6/30 건의
+  `completed_at` 이 7/1 인데 6월 응답에 담긴다)로 확인했으나 **자동화돼 있지 않다** —
+  통합 테스트 49건 상시 skip(Docker 부재)과 같은 공백이다.
+
+---
+
+# 1차 (2026-08-26) — 이하 기록
 
 ## 구현 요약
 
@@ -37,7 +221,7 @@
 
 | Method | Path | 인증 | 상태 |
 |---|---|---|---|
-| GET | `/api/v1/challenges/history` | Bearer | implemented (미배포) |
+| GET | `/api/v1/challenges/history` | Bearer | implemented (미배포) — 🔴 **2026-08-28 월 단위로 개정됨. 위 개정 절이 현행** |
 | DELETE | `/api/v1/users/me` | Bearer | implemented (미배포) |
 | DELETE | `/api/v1/auth/logout` | Bearer | 기존 — **서버 변경 0** |
 | GET | `/api/v1/challenges/{id}/verifications` | Bearer | **필드 1개 추가** (additive) |
@@ -78,14 +262,17 @@ UNIQUE 는 유지 — Postgres 는 UNIQUE 컬럼에 NULL 을 여러 개 허용�
 최악이 **고아 파일**뿐이고 그건 읽히지 않으므로 무해하다. 삭제 실패는 삼키고 WARN 만 남긴다 —
 이미 커밋된 탈퇴를 되돌릴 수 없기 때문이다.
 
-### 4. 보관함은 **전체 목록 + 페이지네이션 없음**
+### 4. ~~보관함은 **전체 목록 + 페이지네이션 없음**~~ 🔴 **2026-08-28 폐기 — 위 개정 절 참조**
 
-실측: 이 프로젝트 목록 엔드포인트 5종 전부 페이지 파라미터가 **0건**이다. PM 규약이
+~~실측: 이 프로젝트 목록 엔드포인트 5종 전부 페이지 파라미터가 **0건**이다. PM 규약이
 *"페이지네이션은 프로젝트 전체에서 한 방식으로 통일"* 이라 보관함 하나만 도입하면
-**그 규약이 금지하는 상태를 이 feature 가 만드는 셈**이다. → 백로그.
+**그 규약이 금지하는 상태를 이 feature 가 만드는 셈**이다. → 백로그.~~
 
-정렬·월 키는 `challengeDate` — 판정이 자정 직후 배치라 `completed_at` 으로 묶으면 **말일
-챌린지가 다음 달 그룹으로 넘어간다.**
+🔴 **월 단위 조회가 되면서 이 논거 전체가 무효다** — 한 응답의 상한이 한 달치로 고정돼
+보관함은 "무한히 자라는 목록" 이 아니게 됐다. 백로그 항목도 철회 대상.
+
+정렬·월 키가 `challengeDate` 인 것은 **유지된다** — 판정이 자정 직후 배치라 `completed_at` 으로
+자르면 **말일 챌린지가 다음 달 응답으로 넘어간다.**
 
 ## 변경된 모듈 & 파일
 
@@ -224,8 +411,9 @@ seed 중 같은 쌍·같은 날짜로 두 건을 넣으려다 걸렸다 — V1 �
 1. **탈퇴 후 access token 최대 1시간 잔존** — 닫으려면 **모든 인증 요청에 DB 조회 1회**가
    붙는다(전역 회귀 위험). 앱의 "탈퇴 즉시 로컬 토큰 삭제" 로 실사용 경로는 막았고 계약에
    수용 기준으로 명시. `GET /users/me` 만 예외적으로 닫혔다.
-2. **페이지네이션 부재** — 보관함이 프로젝트 최초의 "무한히 자라는 목록" 이다. 전 엔드포인트
-   일괄 도입 시점 결정 필요.
+2. ~~**페이지네이션 부재** — 보관함이 프로젝트 최초의 "무한히 자라는 목록" 이다. 전 엔드포인트
+   일괄 도입 시점 결정 필요.~~ 🔴 **2026-08-28 철회** — 월 단위 조회로 전제가 사라졌다.
+   (전 엔드포인트 통일 논의 자체는 남지만 보관함은 그 1순위가 아니다.)
 3. **`PhotoStorage.delete()` 호출부 0건** → **해소.** 백로그 항목 갱신 대상.
 4. **통합 테스트 49건 상시 skip** (Docker 부재) — 기존 블로커. 이번에 그 공백을 수동 구동
    검증으로 메웠으나 **자동화돼 있지 않다.**
