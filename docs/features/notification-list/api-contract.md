@@ -678,7 +678,31 @@ referencePending = (challenges.id = referenceId
 ```
 
 🔴 **홈 '받은 도전장' 과 조건이 같아야 한다.** 다르면 *"알림은 눌리는데 홈엔 없다"* 또는 그 반대가
-난다. 서버 안에서 조건이 두 벌이 되지 않도록 **같은 규칙을 한 곳에서 쓴다.**
+난다.
+
+#### 🔴 그런데 술어가 **두 곳에 있다** — 합치지 않았고, 대신 묶었다 (pm 지적 반영)
+
+`findReceivedPending`(홈, **native query**)과 `findPendingReceivedIdsIn`(알림, **JPQL**)이 같은
+도메인 규칙의 **두 번째 구현**이다. ⚠️ **합치지 않았다** — 컬럼 표기(`c.opponent_id` vs
+`c.opponentId`)부터 SELECT·JOIN·정렬까지 달라서 **합치려다 둘 다 망가뜨리는 게 더 크다.**
+
+대신 **갈라지면 깨지는 장치 3개**를 뒀다:
+
+| # | 장치 | 실행 |
+|---|---|---|
+| 1 | **양방향 교차 참조 KDoc** — 한쪽을 고치는 사람이 반드시 다른 쪽을 보게 | — |
+| 2 | 🔴 **`ChallengeReceivedPredicateBindingTest`** — 두 `@Query` 문자열을 리플렉션으로 읽어 **세 조건(`status='PENDING'` · `deadline >` · opponent)이 양쪽에 다 있는지** 단언 | ✅ **항상** |
+| 3 | `NotificationReferencePendingIntegrationTest` — **한 테스트 안에서** *"홈에 있는 challengeId 집합" == "`referencePending=true` 인 알림의 referenceId 집합"* | ⚠️ Docker 필요 (현재 skip) |
+
+🔵 **2번이 실제로 잡는지 검증했다** — JPQL 쪽을 `>=` 로 바꿔 **실패시켜 보고 되돌렸다.**
+`deadline\s*>(?!=)\s*:` 로 봐서 `>=` 오탐도 막는다. 실패 메시지에 **두 쿼리 원문이 다 찍힌다.**
+
+⚠️ **정규화를 두 단계로 나눈 것이 중요하다** — 대소문자를 접으면 `status = 'pending'`(DB 엔 대문자
+enum name 이 들어가므로 **조용히 빈 결과가 되는 실제 버그**)이 통과해 버린다. 공백만 접는
+`squash` 를 status·deadline 에, 소문자화까지 하는 `fold` 를 **opponent 표기 차이에만** 쓴다.
+
+⚠️ **2번의 한계**: 문자열 검사라 *"의미가 같다"* 를 증명하지 못한다. 겨누는 실패 모드는
+**«한쪽에서 조건을 빼는 것»** 하나이고 그건 정확히 잡는다. 의미 검증은 3번 몫이다.
 
 **대상이 삭제됐으면 `false`** — 존재하지 않으면 조건을 만족할 수 없다. 별도 분기가 없다.
 

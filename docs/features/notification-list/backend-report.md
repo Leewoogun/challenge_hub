@@ -25,7 +25,7 @@ WHERE c.opponent_id = :me AND c.status = 'PENDING' AND c.deadline > :now
 내렸다면 앱이 *"PENDING = 탭 가능"* 으로 읽어 **만료된 신청을 빈 '받은 도전장'으로 보낸다** —
 **사용자가 신고한 증상의 재발**이다. 상세는 계약 §9.3.
 
-### 변경 파일 (14, 전부 미커밋)
+### 변경 파일 (16, 전부 미커밋)
 
 | 모듈 | 파일 | 변경 |
 |---|---|---|
@@ -50,9 +50,22 @@ WHERE c.opponent_id = :me AND c.status = 'PENDING' AND c.deadline > :now
 
 ```
 v1 기준선  total 589 / passed 540 / skipped 49 / failures 0
-v2 최종    total 601 / passed 552 / skipped 49 / failures 0
+v2 최종    total 605 / passed 555 / skipped 50 / failures 0
 ```
-**+12 전부 신규, 회귀 0.** 만료 경계는 `now-1s`=false / `now`(정각)=false / `now+1s`=true 로
+**+16 전부 신규, 회귀 0.** ⚠️ **skip +1 은 회귀가 아니다** — 새 통합 테스트가 기존 49건과 같은
+이유(Docker 부재 `@EnabledIf` 가드)로 건너뛴 것이다.
+
+### 🔴 술어 복제 방지 (pm 지적 반영)
+
+`findReceivedPending`(홈, native)과 `findPendingReceivedIdsIn`(알림, JPQL)이 **같은 도메인 규칙의
+두 번째 구현**이다. ⚠️ **합치지 않았다**(native/JPQL 이라 표기·SELECT·JOIN·정렬이 다 다르다).
+대신 **갈라지면 깨지는 장치 3개**: 양방향 교차 참조 KDoc / `ChallengeReceivedPredicateBindingTest`
+(**항상 실행** — 두 `@Query` 를 리플렉션으로 읽어 세 조건 존재를 단언) / 통합 테스트(Docker 필요,
+**한 테스트 안에서** *"홈 집합 == `referencePending=true` 집합"*).
+
+🔵 **구조 테스트가 실제로 잡는지 확인했다** — JPQL 을 `>=` 로 바꿔 실패시켜 보고 되돌렸다.
+⚠️ 정규화에서 **대소문자를 접으면 안 된다** — `status = 'pending'` 이 통과하는데 DB 엔 대문자
+enum name 이 들어가므로 **조용히 빈 결과가 되는 실제 버그**다. 만료 경계는 `now-1s`=false / `now`(정각)=false / `now+1s`=true 로
 `>` 를 고정했다 — `findReceivedPending` 과 같은 규칙.
 
 ### 🔴 실구동 (계약 §8.1) — 10항목 전부 통과
