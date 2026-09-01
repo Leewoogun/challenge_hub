@@ -1,8 +1,10 @@
 # API Contract — 알림 목록 (notification-list)
 
 - **feature-id**: notification-list
-- **상태**: ✅ **`confirmed`** (2026-09-01) — 오픈 이슈 3건 전부 해소. 이후 변경은 `change-log.md` 에 기록.
-  §4 읽음 처리는 **(B) 확정**(pm 판정 2026-09-01). 전 엔드포인트 **실구동 검증 완료**(§8).
+- **상태**: ✅ **`confirmed`** — 🔴 **v2 (2026-09-01 2차 개정)** 가 현행. 응답에 **`referencePending` 1필드 추가**
+  ([§9](#9--referencepending--2차-개정-2026-09-01), spec 2차 개정 §2). 나머지 shape 은 v1 그대로다.
+  §4 읽음 처리는 **(B) 확정**(pm 판정). 전 엔드포인트 **실구동 검증 완료**(§8).
+  변경 이력은 [change-log.md](./change-log.md).
 - **소유**: backend-dev (noti-backend)
 - **작성**: 2026-09-01 backend-dev
 - **상위 spec**: [spec.md](./spec.md)
@@ -55,10 +57,19 @@ Authorization: Bearer {accessToken}
     "notifications": [
       {
         "notificationId": 57,
+        "type": "CHALLENGE_REQUEST",
+        "body": "민수과 계약을 하시렵니까?",
+        "referenceId": 1001,
+        "referencePending": true,
+        "createdAt": "2026-09-01 13:42:07"
+      },
+      {
+        "notificationId": 56,
         "type": "CHALLENGE_ACCEPTED",
         "body": "민수님이 수락했습니다",
         "referenceId": 1001,
-        "createdAt": "2026-09-01 13:42:07"
+        "referencePending": null,
+        "createdAt": "2026-09-01 13:40:11"
       }
     ],
     "nextCursor": 38
@@ -79,14 +90,15 @@ Authorization: Bearer {accessToken}
 | `type` | **string** | non-null | §5 — 🔴 **열린 집합이다. enum 으로 받지 마라** |
 | `body` | string | non-null | 발송 시점 문구 **박제값**. 카드가 그리는 메시지 1행 |
 | `referenceId` | long | 🔴 **nullable** | 목적지 id. 타입에 따라 참조 대상이 다르다 — §6 |
+| `referencePending` | boolean | 🔴 **nullable** | **v2 신규.** 참조 대상이 아직 응답을 기다리는가 — **§9** |
 | `createdAt` | string | non-null | `yyyy-MM-dd HH:mm:ss` KST. 앱이 경과 시각으로 변환 |
 
 🔴 **`title` 과 `isRead` 는 의도적으로 없다.** 둘 다 서버 테스트가 `doesNotExist()` 로 고정한다.
 근거는 각각 아래 §1.1 과 §4.
 
-⚠️ **`nextCursor` / `referenceId` 가 `null` 이어도 키는 항상 실린다** — 이 프로젝트 Jackson 에
-`@JsonInclude(NON_NULL)` 설정이 없다(mypage `WireShapeContractTest` 실측분). 모바일은 키 존재를
-전제해도 된다.
+⚠️ **`nextCursor` / `referenceId` / `referencePending` 이 `null` 이어도 키는 항상 실린다** — 이
+프로젝트 Jackson 에 `@JsonInclude(NON_NULL)` 설정이 없다(mypage `WireShapeContractTest` 실측분).
+모바일은 키 존재를 전제해도 된다.
 
 ### 1.1 🔴 `title` 을 **빼기로 했다** — 초안을 뒤집었다 (design §3.3 판정 반영)
 
@@ -548,12 +560,156 @@ Testcontainers 통합 테스트 49건은 컨테이너 런타임 부재로 상시
 | 20 | 🔴 **`GET /notifications` 이 읽음 처리를 하지 않는다** — 조회 후에도 `unreadCount` 7 유지 | ✅ |
 | 21 | 무인증 3경로 전부 HTTP 401 | ✅ `/notifications`, `/unread-count`, `/read-all` |
 
+### 8.1 🔴 v2 `referencePending` 실구동 — **만료 케이스가 이 개정의 핵심이다**
+
+시드: user1 이 `opponent` 인 챌린지 3건(대기 / **PENDING 인데 마감 지남** / IN_PROGRESS) +
+삭제된 챌린지를 가리키는 알림 1건.
+
+| # | 알림 | 대상 상태 | 기대 | 실측 |
+|---|---|---|---|---|
+| 1 | 신청 | `PENDING`, 마감 미경과 | `true` | ✅ `true` |
+| 2 | 신청 | 🔴 **`PENDING`, 마감 지남** (lazy expiry) | `false` | ✅ **`false`** |
+| 3 | 신청 | `IN_PROGRESS` | `false` | ✅ `false` |
+| 4 | 신청 | **대상 없음**(삭제) | `false` | ✅ `false` |
+| 5 | 증거 도착 | — | `null` | ✅ `null` |
+| 6 | 수락 | — | `null` | ✅ `null` |
+| 7 | `CHALLENGE_REQUEST` **non-null 보장** | — | 전건 non-null | ✅ |
+| 8 | 그 외 타입은 전부 `null` | — | — | ✅ |
+| 9 | `null` 이어도 **키 존재** | — | — | ✅ |
+
+🔴 **10. 홈 '받은 도전장' 과 직접 대조** — 같은 계정으로 `GET /challenges/received` 를 부르니
+**`[2001]` 하나**만 왔다. **2002(만료된 PENDING)는 양쪽 모두에서 빠졌다.**
+§9.4 가 요구한 *"홈과 같은 술어"* 가 **추론이 아니라 실측으로 확인**된 것이다.
+
+⚠️ **2번이 없었으면 이 개정은 실패했을 것이다.** 상태값만 봤다면 `PENDING` 이라 `true` 가
+나가고, 앱이 탭을 허용해 **빈 '받은 도전장'으로 보낸다** — 사용자가 신고한 증상 그대로다.
+
 정리 완료 확인: `challenge_noti_verify` drop / 8088 프로세스 종료 / 공용 `challenge` DB 의
 `notifications` 14행 그대로 / `:8080` 정상 응답(401).
 
 > ⚠️ **2회 돌렸다.** 1회차는 `title` 제거 **전** 빌드였고, §1.1 로 shape 이 바뀌었으므로
 > **최종 빌드로 전량 재실행**했다. 위 표는 재실행분이다 — 낡은 shape 에 대한 검증을 근거로
 > 남기지 않기 위해서다.
+
+---
+
+## 9. 🔴 `referencePending` — 2차 개정 (2026-09-01)
+
+**사용자 실사용 피드백**: *"알림 화면에서 이동하니까 이미 지난 챌린지도 이동이 되어서 어색하다."*
+목록의 탭 규칙이 **타입에서 상태로** 바뀌었다(spec 2차 개정 §1). 앱이 그 판단을 하려면 **신청
+알림의 대상이 아직 살아 있는지**를 알아야 하는데, v1 의 5필드에는 그 정보가 없었다.
+
+### 9.1 의미
+
+> **`referencePending` = 이 알림이 가리키는 대상이 아직 응답을 기다리는가.**
+
+| 값 | 뜻 |
+|---|---|
+| `true` | 참조 대상이 **아직 응답 대기 중** |
+| `false` | 이미 처리됐거나(수락·거절·만료·종료) 🔴 **대상이 존재하지 않는다**(삭제) |
+| `null` | 🔴 **이 타입에는 이 개념이 없다** — 서버가 판단하지 않았다 |
+
+**보장**: `type == "CHALLENGE_REQUEST"` 이면 **항상 non-null** 이다. 서버 테스트가 고정한다.
+
+### 9.2 🔴 `null` 을 어떻게 읽어야 하는가 — **탭 여부를 이 필드로 판단하지 마라**
+
+pm 이 명시적으로 요구한 절이다. *"모르면 탭 가능"* 과 *"모르면 비탭"* 은 **반대 결과**를 낳는다.
+
+🔴 **둘 다 틀렸다. `null` 은 «이 필드를 보지 마라»** 는 뜻이다.
+
+`referencePending` 은 **탭 여부의 결정자가 아니라 추가 조건**이다. 앱의 판단 순서:
+
+1. **타입이 기본 규칙을 정한다** — 신청 = 조건부 / 증거 도착 = 항상 / 수락·거절 = 안 됨 /
+   **모르는 타입 = 안 됨**(§5 폴백).
+2. **기본 규칙이 «조건부» 인 타입에서만** `referencePending == true` 를 추가로 요구한다.
+
+즉 `null` 인 행(`OPPONENT_VERIFIED`·`CHALLENGE_ACCEPTED`·…)은 **1번에서 이미 결론이 난다.**
+⚠️ `null` 을 *"비탭"* 으로 읽으면 **증거 도착이 안 눌리고**(spec 은 *"항상"* 이라고 못박았다),
+*"탭 가능"* 으로 읽으면 **수락·거절이 눌린다.** 그래서 어느 쪽으로도 읽으면 안 된다.
+
+### 9.3 🔴 왜 상태 문자열이 아니라 boolean 인가 — **실측이 이 선택을 강제했다**
+
+pm 제약 1(*"서버는 사실을 내리고 앱이 UI 정책을 갖는다"*)만 보면 **원시 상태값
+(`referenceStatus: "PENDING"`)이 더 «사실»처럼 보인다.** `type` 을 원문 String 으로 낸 것과 같은
+결로 읽히기 때문이다. **그런데 실측이 그 안을 기각했다.**
+
+🔴 **홈의 '받은 도전장'은 `status = PENDING` 만으로 결정되지 않는다.**
+
+```sql
+-- ChallengeJpaRepository.findReceivedPending (실측)
+WHERE c.opponent_id = :me
+  AND c.status = 'PENDING'
+  AND c.deadline > :now      -- 🔴 이것
+```
+
+`ChallengeCommandService` KDoc 이 이유를 적어 뒀다 — ***"마감 지난 row 는 DB 에서 `PENDING` 인
+채로 남고 응답에서만 빠진다 (lazy expiry)"*.** 즉 **`PENDING` 이면서 이미 만료된 챌린지가
+정상적으로 존재한다.**
+
+⚠️ **`referenceStatus: "PENDING"` 을 내렸다면 앱은 «PENDING = 탭 가능» 으로 읽었을 것이고,
+만료된 신청 알림이 탭돼 홈으로 보내면 «받은 도전장» 이 비어 있다** — **사용자가 신고한 바로 그
+증상이, 원인만 바꿔서 그대로 재발한다.**
+
+**규칙의 소유자로 갈린다**:
+
+| 규칙 | 어디 살아야 하나 |
+|---|---|
+| *"어떤 챌린지가 아직 응답 대기인가"*(`PENDING` + 마감 미경과 + lazy expiry) | 🔴 **챌린지 도메인 = 서버** |
+| *"응답 대기인 신청 알림만 탭 가능"* | **UI 정책 = 앱** |
+
+앱이 앞의 것을 encode 하면 **챌린지 도메인이 바뀔 때 알림 화면이 조용히 틀리고, 아무도 거기를
+안 본다.** boolean 은 그 경계를 정확히 자른다 — 🔵 **pm 제약 1 을 어긴 게 아니라, «사실» 이
+원시 컬럼값이 아니라 도메인 술어라는 것**이다.
+
+🔵 **이름도 그래서 `tappable`/`actionable` 이 아니다**(pm 이 피하라고 한 이름). `reference*`
+접두는 `referenceId` 와 짝이고 **참조 대상이 타입마다 다르다는 중립성**을 승계한다
+(push-fcm 오픈이슈 3). `FRIEND_REQUEST` 가 열려 `users.id` 를 가리키게 돼도
+*"그 친구 요청이 아직 응답 대기인가"* 로 **의미가 그대로 성립한다.**
+
+### 9.4 산출 규칙 — 홈과 **같은 술어를 쓴다**
+
+`CHALLENGE_REQUEST` 행에 대해:
+
+```
+referencePending = (challenges.id = referenceId
+                    AND opponent_id = 알림 수신자
+                    AND status = 'PENDING'
+                    AND deadline > now)  가 존재하는가
+```
+
+🔴 **홈 '받은 도전장' 과 조건이 같아야 한다.** 다르면 *"알림은 눌리는데 홈엔 없다"* 또는 그 반대가
+난다. 서버 안에서 조건이 두 벌이 되지 않도록 **같은 규칙을 한 곳에서 쓴다.**
+
+**대상이 삭제됐으면 `false`** — 존재하지 않으면 조건을 만족할 수 없다. 별도 분기가 없다.
+
+### 9.5 성능 — **join 하지 않는다. 배치 조회 1회**
+
+pm 이 N+1 을 우려한 자리다. 행마다 챌린지를 조회하면 페이지당 최대 50 쿼리가 된다.
+
+**채택: 타입으로 거른 뒤 배치 조회.** 페이지를 읽고 → `CHALLENGE_REQUEST` 행의 `referenceId` 만
+모아 → **`IN` 절 1회**로 "응답 대기인 id 집합"을 받아 → 매핑한다.
+**페이지 크기와 무관하게 총 2쿼리**이고 `COUNT` 도 없다.
+
+🔴 **join 을 쓰지 않는 이유는 성능이 아니라 정합성이다.** `notifications.reference_id` 는
+**FK 가 아니고 타입마다 참조 대상이 다르다**(push-fcm 오픈이슈 3, V8 컬럼 주석).
+`notifications JOIN challenges ON reference_id = challenges.id` 는 **오늘은 동작하지만
+`FRIEND_REQUEST` 가 열리는 순간 `users.id` 를 `challenges.id` 로 조인한다** — 우연히 같은 숫자면
+**엉뚱한 챌린지의 상태가 친구 요청 알림에 붙고**, 아니면 행이 사라진다. **타입 필터가 조인
+조건 안에 없으면 조용히 틀린다.**
+
+⚠️ `IN` 절 **빈 컬렉션 가드는 호출부에 둔다** — 이 레포 선례(`findActiveByUser`·`findDueByStatus`)와
+같다. `CHALLENGE_REQUEST` 행이 0건인 페이지에서 2번째 쿼리를 아예 걸지 않는다.
+
+### 9.6 spec 오픈 이슈 3(대상이 사라진 경우) — **부분 해소**
+
+| 타입 | 대상이 삭제됐을 때 |
+|---|---|
+| 신청 | ✅ **사전 차단.** `referencePending = false` 라 앱이 탭을 막는다 — **705 에 도달하지 않는다** |
+| 증거 도착 | ⚠️ **여전히 705.** *"항상 탭"* 이므로 기존 경로 그대로다 |
+
+🔵 **증거 도착까지 사전 차단하지 않는다.** 그러려면 이 필드의 의미가 *"대상이 존재하는가"* 로
+넓어져야 하는데, 그건 §9.1 의 *"응답을 기다리는가"* 와 **다른 질문**이고 두 뜻을 한 필드에
+담으면 `false` 가 무엇을 뜻하는지 알 수 없게 된다. 705 는 이미 앱이 처리하는 정상 경로다.
 
 ---
 

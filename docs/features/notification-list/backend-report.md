@@ -1,8 +1,77 @@
 # Backend Report — notification-list
 
-- **작성**: 2026-09-01 backend-dev (noti-backend)
-- **계약**: [api-contract.md](./api-contract.md) — ✅ `confirmed`
-- **상태**: implemented (**미배포·미커밋**)
+- **작성**: 2026-09-01 backend-dev (noti-backend). 🔴 **v2 개정분 반영** (아래 §v2)
+- **계약**: [api-contract.md](./api-contract.md) — ✅ `confirmed` (**v2** 가 현행) · [change-log.md](./change-log.md)
+- **상태**: implemented (**미배포**). v1 은 사용자가 커밋(`e8b1460`), **v2 는 미커밋 14파일**
+
+---
+
+## 🔴 v2 (2026-09-01) — `referencePending` 추가
+
+사용자 피드백(*"이미 지난 챌린지도 이동이 되어서 어색하다"*)으로 목록 탭 규칙이 **타입 → 상태**로
+바뀌었다. 응답에 **필드 1개 추가**, 기존 5필드·3엔드포인트·커서 규약은 **전부 그대로**다.
+
+### 🔴 이 개정의 핵심 — 원시 상태값 안이 실측으로 기각됐다
+
+`referenceStatus: "PENDING"` 을 내리는 안이 더 «사실»처럼 보였고 먼저 검토했다. **기각 근거**:
+
+```sql
+-- 홈 '받은 도전장' 실측 (findReceivedPending)
+WHERE c.opponent_id = :me AND c.status = 'PENDING' AND c.deadline > :now
+```
+
+`ChallengeCommandService` KDoc — ***"마감 지난 row 는 DB 에서 `PENDING` 인 채로 남고 응답에서만
+빠진다 (lazy expiry)"*.** 🔴 **«PENDING 이면서 만료된» 챌린지가 정상적으로 존재**하므로, 상태값을
+내렸다면 앱이 *"PENDING = 탭 가능"* 으로 읽어 **만료된 신청을 빈 '받은 도전장'으로 보낸다** —
+**사용자가 신고한 증상의 재발**이다. 상세는 계약 §9.3.
+
+### 변경 파일 (14, 전부 미커밋)
+
+| 모듈 | 파일 | 변경 |
+|---|---|---|
+| `:domain:repository` | `challenge/ChallengeRepository.kt` | 포트 `findPendingReceivedIdsIn(opponentId, ids, now)` |
+| `:infra:jpa` | `challenge/ChallengeJpaRepository.kt` | JPQL — 술어 3조건(`opponent_id`·`PENDING`·`deadline > now`) |
+| `:infra:repositoryimpl` | `challenge/ChallengeRepositoryImpl.kt` | 빈 `IN` 가드 + `toSet()` |
+| `:service` | `notification/NotificationQueryService.kt` | `ChallengeRepository`+`Clock` 주입, 배치 조회 1회 |
+| `:controller` | `notification/dto/NotificationListResponse.kt` · `NotificationController.kt` | 필드 + 매핑 |
+| 테스트 (8) | Query/Controller +12건, 기존 fake `ChallengeRepository` **6곳** 채움 | |
+
+**마이그레이션 0건** — 스키마 변경이 없다.
+
+### 성능 — join 을 쓰지 않는다
+
+**타입으로 거른 뒤 `IN` 절 배치 1회.** 페이지 크기와 무관하게 **총 2쿼리**, COUNT 없음.
+🔴 **join 이 위험한 이유는 성능이 아니라 정합성이다** — `reference_id` 는 FK 가 아니고 타입마다
+참조 대상이 다르므로, `FRIEND_REQUEST` 가 열리면 `users.id` 를 `challenges.id` 에 조인하게 되어
+**조용히 틀린다**(계약 §9.5). N+1 회귀 장치로 *"배치 조회는 페이지당 1회"* 와 *"fake 의 단건
+`findById` 는 `error()`"* 를 테스트에 박았다.
+
+### 테스트
+
+```
+v1 기준선  total 589 / passed 540 / skipped 49 / failures 0
+v2 최종    total 601 / passed 552 / skipped 49 / failures 0
+```
+**+12 전부 신규, 회귀 0.** 만료 경계는 `now-1s`=false / `now`(정각)=false / `now+1s`=true 로
+`>` 를 고정했다 — `findReceivedPending` 과 같은 규칙.
+
+### 🔴 실구동 (계약 §8.1) — 10항목 전부 통과
+
+throwaway DB `challenge_noti_verify` + 포트 8088, 공용 DB·`:8080` 불가침, 정리까지 확인.
+핵심 2건:
+
+1. 🔴 **`PENDING` 인데 마감 지난 챌린지 → `false`.** 이 케이스가 없었으면 개정이 실패했다.
+2. 🔴 **홈 '받은 도전장' 과 직접 대조** — 같은 계정으로 `GET /challenges/received` 를 부르니
+   **정확히 같은 1건**만 왔다(만료분은 양쪽 모두에서 빠짐). §9.4 의 *"홈과 같은 술어"* 가
+   **추론이 아니라 실측으로 확인**됐다.
+
+### spec 오픈 이슈 3 — **부분 해소**
+
+신청은 사전 차단돼 **705 에 도달하지 않는다.** 증거 도착은 **여전히 705**(*"항상 탭"*).
+
+---
+
+## v1 (아래는 최초 구현분 — 사용자 커밋 `e8b1460`)
 
 ## 구현 요약
 
@@ -241,7 +310,11 @@ jsonPath("$.data.notifications[0].title").doesNotExist()    // §1.1 — design 
 > `f72d0b4` 까지 정정됐는데 **이 report 만 남아 있었다** — 같은 숫자가 5개 문서에 흩어져 있었고
 > **마지막 하나는 전수 grep 으로만 찾혔다.**
 
-### ⚠️ 5. 미커밋
+### ✅ 5. ~~미커밋~~ → **v1 은 커밋됨, v2 가 미커밋**
 
-🚫 지시대로 **커밋·staging 하지 않았다.** 변경 **12개**(신규 6 / 수정 6)가 working tree 에 있다.
-서버 레포 HEAD 는 `0c06589` 그대로다. 코드 레포 커밋은 사용자 몫이다.
+🚫 지시대로 **내가 커밋·staging 하지 않았다.** 코드 레포 커밋은 사용자 몫이다.
+
+- **v1** (신규 6 / 수정 6) — ✅ **사용자가 커밋했다**: `e8b1460 feat: 알림 히스토리 조회 기능 구현`
+  (13파일 +2014줄). ⚠️ 초판 report 가 *"HEAD 는 `0c06589` 그대로"* 라고 적고 있었는데 **낡았다** —
+  그 사이 사용자가 커밋했다.
+- **v2** (`referencePending`) — **미커밋 14파일.** 위 §v2 참조.
