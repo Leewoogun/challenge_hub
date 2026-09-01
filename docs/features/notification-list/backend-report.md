@@ -51,7 +51,33 @@
 | `:domain:repository` | `notification/NotificationRepository.kt` | 포트 3개 추가(`findPageByUserId` / `countUnreadByUserId` / `markAllAsReadByUserId`). 낡은 *"조회는 아직 없다"* KDoc 교체 |
 | `:infra:jpa` | `notification/NotificationJpaRepository.kt` | 쿼리 4개 추가 |
 | `:infra:repositoryimpl` | `notification/NotificationRepositoryImpl.kt` | 위임 3개 |
+| `:infra:entity` | `notification/NotificationEntity.kt` | 🔴 **`toDomain()` KDoc 정정** (주석만, 로직 무변경) — 아래 |
 | `:service` (test) | `notification/NotificationDispatcherTest.kt` · `user/WithdrawalServiceTest.kt` | 포트가 늘어 기존 fake 2곳에 새 메서드 채움 (해당 경로에서 호출되면 `error(...)`) |
+
+### 🔴 `NotificationEntity.toDomain()` KDoc 정정 — pm-lead 요청분
+
+⚠️ **초판 report 에서 이 항목을 빠뜨렸다.** pm-lead 가 report 요청 시 명시한 4항목 중 하나였는데
+누락했고, 지적받아 처리했다.
+
+그 KDoc 이 *"(현재 `notifications` 는 0행이라 실제로 그런 row 는 없다.)"* 로 끝나고 있었다.
+**낡았다** — push-fcm 이 4종을 발송하며 row 를 쌓고 있고, 실측 dev DB **14행**이다
+(`CHALLENGE_REQUEST` 7 / `ACCEPTED` 3 / `REJECTED` 2 / `OPPONENT_VERIFIED` 2).
+
+⚠️ **문구 오류가 아니라 위험도 오독을 부르는 문장이었다** — 그 괄호가 **강등 로직을 "이론상
+안전"으로 보이게 하는 유일한 근거**인데, 근거가 사라졌는데 문장만 남으면 다음 사람이 위험도를
+낮게 읽는다.
+
+**"0행이라 안전"을 진짜 이유로 교체했다**: 오늘 강등이 안 터지는 것은 행이 없어서가 아니라
+**쓰기가 제약돼서**다(`fromDomain` 이 `type.name` 만 쓰므로 DB 값은 enum 8종 name 뿐, 8종은 전부
+round-trip). 함께 적은 것 — 읽기 경로가 생기며 **결과가 화면에 렌더되고 탭 목적지가 된다**는
+성격 변화, `VerificationEntity` 와 **같은 것은 코드 모양까지고 위험 등급은 다르다**는 대비
+(거긴 내부 분기용이라 눈에 띄게 깨지고 여긴 렌더되는 값이라 조용히 틀린다), 안 고치는 이유와
+트리거 2개.
+
+🔵 **실측 14행이라는 숫자는 KDoc 에 넣지 않았다** — 그 숫자도 똑같이 낡아 **이번과 같은 오독을
+다시 만든다.** *"행이 쌓이고 있다 + 행 수는 근거가 아니다"* 로 적고 근거를 쓰기 제약으로 옮겼다.
+
+로직·시그니처 무변경이라 테스트 숫자는 **589/540/49/0 그대로**다.
 
 ## DB 마이그레이션
 
@@ -168,6 +194,23 @@ jsonPath("$.data.notifications[0].title").doesNotExist()    // §1.1 — design 
 관측되지 않은 경로를 위한 리팩터링은 이 프로젝트 방침이 아니다.
 **트리거**: (1) 다중 인스턴스 배포(ADR-0007), (2) enum 밖 타입이 DB 에 들어가는 경로 발생.
 
+> 🔴 **pm-lead 의 최초 지시는 실행 불가능했고 그 사실을 남긴다** — *"목록 조회는 `toDomain()` 을
+> 밟지 말고 **컬럼에서 바로 프로젝션**해 원문 String 을 내려라."* `NotificationRepositoryImpl
+> .findPageByUserId` 가 **`List<Notification>`(도메인)을 반환**하고 `Notification.type` 이 enum
+> 이라 **거기가 병목이라 "컬럼에서 바로"라는 길이 없다.** 하려면 도메인 모델을 String 으로
+> 바꾸거나(위 번짐) 계층을 우회하는 별도 읽기 경로를 만들어야 하는데, 후자는 이 레포의 DIP
+> 규약(`.claude/skills/dip-architecture`)을 정면으로 어긴다. pm-lead 가 *"엔티티에 값이 있는
+> 것과 그 값이 응답까지 갈 길이 있는 것은 다른 문제인데 후자를 안 봤다"* 로 정정했고,
+> **지시를 그대로 따르지 않고 실측해 미해결로 올린 처리가 승인**됐다.
+
+**계약 쪽 처리 (2026-09-01, [change-log.md](./change-log.md))**: 이 사실이 report 에만 있으면
+**계약을 읽는 사람은 report 를 안 읽는다.** §5 의 논증 **바로 다음 줄에 인라인 경고**를 넣었다
+(접기·별도 절로 분리했다가 안 읽혀 사고 난 것이 이 프로젝트에 3회). 경고의 마지막 문장이
+핵심 — *"앱의 폴백을 «쓸모없는 방어»로 읽지 마라."* 없으면 누군가 *"어차피 서버가 아는 값만
+주는데"* 라며 design §3.2 폴백을 걷어내고, 트리거가 왔을 때 막을 것이 없어진다.
+
+**KDoc 도 같은 사실을 담도록 고쳤다** — 위 "변경된 모듈 & 파일" 절 참조.
+
 ### 🟡 2. `CHALLENGE_REQUEST` 문구의 조사 결함 — `"민수과 계약을 하시렵니까?"`
 
 `NotificationMessages` 의 `"{actorNickname}과 계약을 하시렵니까?"` 가 **받침 없는 닉네임에서
@@ -192,4 +235,5 @@ jsonPath("$.data.notifications[0].title").doesNotExist()    // §1.1 — design 
 
 ### ⚠️ 5. 미커밋
 
-🚫 지시대로 **커밋·staging 하지 않았다.** 변경 11개(신규 6 / 수정 5)가 working tree 에 있다.
+🚫 지시대로 **커밋·staging 하지 않았다.** 변경 **12개**(신규 6 / 수정 6)가 working tree 에 있다.
+서버 레포 HEAD 는 `0c06589` 그대로다. 코드 레포 커밋은 사용자 몫이다.
