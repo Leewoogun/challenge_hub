@@ -2,6 +2,7 @@
 
 | feature-id | 제목 | 상태 | 완료일 | 링크 |
 |-----------|------|------|-------|------|
+| notification-list | 알림 목록 (조회 API 3종 + 화면 + 홈 벨 뱃지 점등 — **앱 placeholder 0 달성**) | **implemented** (전 범위 구현·검증 완료. 🔴 **양 레포 미커밋** — 서버 12파일·앱 34경로 / 실기 미확인. 커서 페이지네이션 최초 도입 → ADR-0012) | 2026-09-01 | [📄](./notification-list/summary.md) |
 | mypage | 마이페이지 (프로필·계약서 보관함·로그아웃 실구현·회원탈퇴 — 4탭 완성) | completed (서버 실구동 검증. 디바이스 실기·KAKAO_ADMIN_KEY 대기) | 2026-08-26 | [📄](./mypage/summary.md) |
 | loser-ranking | 개돼지 랭킹 (나+친구 패자 랭킹 — Top3 포디움 + 수치의 명단, 4탭 placeholder 0 달성) | completed (실서버 실측. 디바이스 실기 미확인) | 2026-08-26 | [📄](./loser-ranking/summary.md) |
 | challenge-result | 챌린지 결과 판정 (자정 배치 §2.6 판정 + FAILED·EXPIRED 전이 + 전적 집계, 푸시 제외) | completed (서버 실데이터 소급 실측. 디바이스 실기 미확인. 첫 스케줄러 — :batch 개통) | 2026-08-25 | [📄](./challenge-result/summary.md) |
