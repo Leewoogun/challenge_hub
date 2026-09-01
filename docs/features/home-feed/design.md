@@ -31,7 +31,11 @@
 - **레이아웃** (위→아래):
   1. **Sticky Header** (`bg-background/80 backdrop-blur-xl`, 좌우 20.dp 패딩 + safe-top inset)
      - 좌측: `Flame` 24.dp(primary) + "맹세" 라벨 (text-xl extrabold)
-     - 우측: `Bell` 아이콘 + 우상단 2.dp dot (destructive) — 미확인 알림 표시
+     - 우측: `Bell` 아이콘 + 우상단 **8.dp** dot (`error`) — 미확인 알림 표시
+       > 🔴 **2026-09-01 정정**: 원래 `2.dp` 로 적혀 있었는데 **오기다.** Tailwind `w-2 h-2` 는 2px 이
+       > 아니라 **8px**(`w-2` = `0.5rem`)인데 숫자만 옮겨 적었다. 구현 `HomeTopBar.kt:81` 의 `.size(8.dp)`
+       > 가 맞다 — **코드를 이 문서에 맞추지 마라.** `destructive` → `error` 도 실제 토큰명으로 정정.
+       > (notification-list design §11-⑤ 에서 발견)
   2. **Stats bar** (`glass-card`, 수평 4분할)
      - 각 셀: 숫자(text-lg bold) + 라벨(10sp muted) 세로 정렬
      - 셀 구분: 8.dp 높이 세로 보더(`bg-border`)

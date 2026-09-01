@@ -61,7 +61,7 @@
       "test": "kotlin.test (현재 스켈레톤 수준)",
       "build": "Gradle Kotlin DSL + 커스텀 build-logic 플러그인"
     },
-    "_modules_comment": "2026-08-06 settings.gradle.kts 실측 갱신. soul-oath 에서 :feature:challenge:oath / :detail 신설. 사용자 커밋 0389e99 'refactor: 프로젝트 아키텍처에 DataSource 추가' 로 :remote:datasource 모듈 신설 — RepositoryImpl 이 얇은 위임체가 되고 flow{} + suspendOnSuccess/suspendOnFailureWithErrorHandling 패턴이 이 모듈로 이관됐다(사본 9곳, backlog flowUtil 항목 참조). ⚠️ :core:invite 는 존재하지 않는다 — friends 2차 계획 당시의 모듈명이었으나 실제로는 승격되지 않고 카톡 초대 코드가 :feature:friends:list 안(kakao/KakaoInviter.kt, iosMain 의 IosKakaoInviter·KakaoInviteBridge, di/PlatformInviteModule)에 들어갔다. component_placement_rule 및 커밋 97bf4e7 'fix: feature 모듈 컨벤션에 맞게 정리' 와 정합한다. 2026-08-06 에 이 목록에 :core:invite 를 잘못 추가했다가 mobile-dev 지적으로 정정함.",
+    "_modules_comment": "2026-08-06 settings.gradle.kts 실측 갱신. soul-oath 에서 :feature:challenge:oath / :detail 신설. 사용자 커밋 0389e99 'refactor: 프로젝트 아키텍처에 DataSource 추가' 로 :remote:datasource 모듈 신설 — RepositoryImpl 이 얇은 위임체가 되고 flow{} + suspendOnSuccess/suspendOnFailureWithErrorHandling 패턴이 이 모듈로 이관됐다(사본 9곳, backlog flowUtil 항목 참조). ⚠️ :core:invite 는 존재하지 않는다 — friends 2차 계획 당시의 모듈명이었으나 실제로는 승격되지 않고 카톡 초대 코드가 :feature:friends:list 안(kakao/KakaoInviter.kt, iosMain 의 IosKakaoInviter·KakaoInviteBridge, di/PlatformInviteModule)에 들어갔다. component_placement_rule 및 커밋 97bf4e7 'fix: feature 모듈 컨벤션에 맞게 정리' 와 정합한다. 2026-08-06 에 이 목록에 :core:invite 를 잘못 추가했다가 mobile-dev 지적으로 정정함. 2026-09-01 실측 갱신 (notification-list 중 design-bridge 지적): :core:push · :core:permission 2개가 누락돼 있었다(push-fcm / push-deeplink 때 신설됐는데 이 목록을 갱신하지 않았다). ⚠️ 이 목록은 조용히 낡는다 — 틀려도 아무것도 실패하지 않고, 에이전트가 '없는 모듈'로 오인해 코드를 엉뚱한 곳에 두거나 존재하는 모듈을 재발명할 때에야 드러난다. 이번이 두 번째 사고다(1회: 없는 모듈 추가, 2회: 있는 모듈 누락). 모듈 신설을 동반한 feature 를 닫을 때는 settings.gradle.kts 와 대조하라: grep -oE '\":[a-zA-Z0-9:_-]+\"' settings.gradle.kts | tr -d '\"' | sort",
     "modules": [
       ":composeApp",
       ":core:designsystem", ":core:ui", ":core:utils", ":core:navigation",
@@ -72,7 +72,7 @@
       ":feature:main", ":feature:home", ":feature:login", ":feature:splash",
       ":feature:friends:list", ":feature:friends:search",
       ":feature:challenge:create", ":feature:challenge:oath", ":feature:challenge:detail", ":feature:challenge:verify",
-      ":core:camera",
+      ":core:camera", ":core:push", ":core:permission",
       ":feature:ranking", ":feature:mypage"
     ],
     "component_placement_rule": "feature 전용 컴포넌트는 해당 feature 모듈의 component/ 하위에 둔다. :core:designsystem 은 도메인 무관 프리미티브(Button/Divider/Label/Scaffold/Spacer 등) + theme 만 보유. 커밋 72d9d9c 로 사용자가 확립한 규칙이며, :core:designsystem 이 :core:utils 만 의존해 :domain:model 을 못 받는 제약과도 맞물린다.",
