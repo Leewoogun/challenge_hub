@@ -1,0 +1,116 @@
+# 알림 목록 (notification-list) — Spec
+
+- **feature-id**: notification-list
+- **owner**: pm-lead
+- **상태**: draft
+- **생성**: 2026-09-01
+- **선행**: [push-fcm](../push-fcm/summary.md)(발송·row 저장) · [push-deeplink](../push-deeplink/summary.md)(목적지 매핑)
+- **해소 대상**: 백로그 🟢 *"알림 목록 화면 미구현"*
+
+## 배경
+
+**알림은 오는데 볼 곳이 없다.** `notifications` row 는 push-fcm 부터 쌓이고 있고(4종 발송 운용 중),
+홈 상단 벨 아이콘도 이미 `Route.Notifications` 로 연결돼 있는데 **그 화면이 `PlaceholderScreen`** 이다.
+기획서 §4 IA 가 정의한 진입 경로가 빈 화면으로 끝난다. 🔵 **푸시를 놓치면 그걸로 끝**인 현재 상태를
+메우는 것이 이 feature 의 값이다(RESULT·REMIND 푸시를 제외한 판정 feature 결정 이후 더 중요해졌다).
+
+## §0 사전 실측 — 배선은 다 있고 조회 API + 화면만 없다
+
+| | 상태 |
+|---|---|
+| `notifications` 테이블 · `NotificationEntity` · `NotificationRepository` | ✅ V1 부터. 발송 시 저장까지 운용 중 |
+| 발송 4종 (`CHALLENGE_REQUEST`/`ACCEPTED`/`REJECTED`/`OPPONENT_VERIFIED`) | ✅ 운용 중 (RESULT·REMIND 는 [판정 feature 결정](../challenge-result/summary.md)으로 제외) |
+| 홈 벨 → 알림 화면 진입 | ✅ 이미 연결(`HomeRoute.onBellClick`) — **화면만 placeholder** |
+| 푸시 탭 → 목적지 매핑 (`PushEvent` → `Route`) | ✅ push-deeplink 완성 — **목록 탭에서 재사용 가능** |
+| **조회 API** | ❌ **0건** — 이 feature 의 신규 |
+| Lovable `notifications.tsx` | ✅ 51줄 존재 — 타입별 아이콘·색 + 메시지 + 상대 시각. ⚠️ mock 6종 중 **taunt·reminder·result·lost 는 아직 발송되지 않는 타입** |
+
+## 사용자 시나리오
+
+1. 홈 상단 벨을 눌러 알림 목록을 본다 — 최신순으로 *"누가 무엇을 했는지"* 와 시각.
+2. 알림을 탭하면 **그 알림이 가리키는 화면으로 이동**한다(푸시를 탭한 것과 같은 목적지).
+3. 알림이 없으면 빈 상태를 본다.
+
+## 수용 기준
+
+- [ ] 홈 벨 → 알림 목록(최신순). placeholder 교체
+- [ ] 각 알림이 **타입별로 구분**되어 보인다(아이콘·색) + 상대 시각 표시
+- [ ] 알림 탭 → **push-deeplink 와 같은 목적지**로 이동 (규칙 사본을 만들지 않는다)
+- [ ] 🔴 **발송되지 않는 타입이 화면에 자리를 갖지 않는다** — Lovable mock 의 taunt·reminder·result·lost 는
+  현재 서버가 만들지 않는다. 미래 타입을 미리 그리지 않되, **모르는 타입이 와도 목록이 깨지지 않아야 한다**
+- [ ] 빈 상태 화면
+- [ ] 테스트 결과 숫자로 (Android+iOS)
+
+## 비범위
+
+🔴 **2026-09-01 pm 판정으로 아래 2건이 범위에 들어왔다** — 목록의 존재 이유가 *"푸시를 놓치면 볼 곳이 없다"* 인데
+안 읽은 것을 구분 못 하면 목적이 반쪽이고, **홈 벨 뱃지는 푸시를 놓친 사용자가 "볼 게 있다"를 아는 유일한 신호**다.
+- ✅ **읽음 처리 = (B)** — `POST /notifications/read-all` + 응답 `unreadCount`. *"목록을 열면 전부 읽음"* 하나로 고정해
+  **"언제 읽음인가"라는 제품 결정을 없앤다**(backend 제안). 🔴 **행 단위 `isRead` 는 내리지 않는다** — 항상 false 인
+  필드를 내리면 앱이 그걸로 뭔가를 그리고, 그리는 순간 *"왜 영원히 안 읽음이냐"* 가 된다. 나중에 넣는 것은 additive
+- ✅ **안 읽은 개수 뱃지(홈 벨)** — `unreadCount` 표시. 표현(숫자/점·99+)은 design 판정. ⚠️ `:feature:home` 회귀 주의
+- 알림 삭제·전체 삭제 · 알림 설정(on/off) · 보관 기간 정책
+- 새 알림 타입 추가(도발·결과 등) — 해당 feature 소관
+
+## 태스크 분해
+
+### 디자인 (design-bridge) — ✅ **완료·승인** ([design.md](./design.md))
+- [x] **T-D1** `notifications.tsx` → Compose 명세. 발송 4종만 매핑 + **§3.2 모르는 타입을 숨기지 않는다**
+  (숨기면 ① 푸시로 본 알림이 목록에 없고 ② 홈 뱃지 개수와 어긋난다)
+- [x] **T-D2** **§3.4 경과 시간 포맷터 신규 명세** — 5가지 순차 평가표.
+  🔴 `"N시간 전"`(산술) 가지를 `"어제"`(달력) 가지보다 **먼저** 두는 순서가 이 명세의 핵심이고,
+  두 오답을 각각 반례로 보인 뒤 실제 시각으로 검산했다 — **그 반례 3개가 T-M5 테스트 케이스다**.
+  `어제` 이후는 `"{M}월 {d}일"`(mypage §2.4.3 과 같은 어휘 — 두 번째 날짜 방언을 만들지 않는다).
+  이름은 `toElapsedKoreanString` 류, 🔴 **오버로드 금지**. `now` 는 UiState 가 1회 받아 전 항목 공유
+- [x] **T-D3** **§4.5 홈 벨 뱃지 = 점 유지**(숫자로 바꾸지 않는다). `HomeTopBar` 에 표현·`@Preview` 가
+  이미 있어 **신규 UI 가 아니라 배선**이다
+- [x] **T-D4** **§3.3 메시지는 `body` 만** — `title` 넷은 푸시 헤드라인용이라 목록에서 홀로 서지 못하고
+  (`ㅠㅠ` 한 줄), 2행 구성은 카드 높이 1.5배 대비 얻는 정보가 없다. 🔴 *"응답에서 `title` 을 빼라"는
+  뜻이 아니다* — 계약 필드는 T-B1 소관
+
+### 백엔드 (backend-dev)
+- [ ] **T-B1** 조회 API — `id DESC` + **커서**(`?cursor={lastId}&size=N` → `nextCursor: Long?`).
+  🔴 **응답 `type` 은 DB 원문 String** — 아래 §실측 하자 1
+- [ ] **T-B2** `POST /notifications/read-all` + 응답 `unreadCount`. 🔴 행 단위 `isRead` 는 응답에 넣지 않는다
+
+### 모바일 (mobile-dev)
+- [ ] **T-M1** 알림 화면 — placeholder 교체, 목록·빈 상태·커서 추가 로드
+- [x] **T-M2** 탭 → 딥링크 — ✅ **완료·승인**. `toRoute()` 를 `MainViewModel` private → `:core:push/PushEventRoute.kt`
+  로 승격 + public 화(사본을 **강제하던 구조 자체**를 제거), `PushEvent.of(type, referenceId)` 신설·`from(Map)` 위임.
+  Android 37/37 · iOS 37/37, 신규 10건. **기존 `MainViewModelTest` 4건 무수정 통과** = 동작 보존 증거
+- [ ] **T-M3** 경과 시간 포맷터 신규(§3.4) — 🔴 `toRelativeKoreanString` 오버로드 금지, KDoc 에 방향 교차 명시
+- [ ] **T-M4** 홈 벨 뱃지 연동(§4.5, 점) — ⚠️ `:feature:home` 회귀 주의
+- [ ] **T-M5** 테스트 — 숫자로 (Android+iOS). §3.4 반례 3개 포함
+
+## 🔴 실측 하자 2건 (2026-09-01, mobile 발견 · pm 확인)
+
+두 건 다 **조용히 틀린다** — 화면에 거짓이 찍히는데 앱이 알 방법이 없다는 점에서 같은 종류다.
+
+### 1. 서버가 모르는 `type` 을 `CHALLENGE_REQUEST` 로 강등한다
+
+`NotificationEntity.kt` L61-62 `runCatching { NotificationType.valueOf(type) }.getOrDefault(CHALLENGE_REQUEST)`.
+L53-54 KDoc 이 이를 **의도된 방침**으로 명시(`VerificationEntity.toDomain()` 과 동일 방침). 컬럼은 `var type: String`
+(L32-33)이라 **원문은 DB 에 살아 있고, 잃는 건 매핑 단계다.**
+
+**정책이 맞는 자리와 틀린 자리가 갈린다** — verification 에서 type 은 내부 분기용이라 잘못 떨어지면 눈에 띄게 깨진다.
+목록에서 type 은 **사용자에게 그대로 렌더되는 값**이라, 폐기된 `SIGN_REQUEST` row 가 화면에 **"도전장 도착"** 이라는
+없던 사실로 찍히고 탭하면 엉뚱한 곳으로 간다.
+
+→ **판정**: 목록 조회는 `toDomain()` 을 밟지 말고 **컬럼에서 바로 프로젝션**해 원문 String 을 내린다.
+🔴 `toDomain()` **자체는 고치지 않는다**(다른 경로가 의존). **이것이 `type` 을 String 계약으로 정한 이유다** —
+원문을 보존해야 앱이 모르는 타입을 모르는 타입으로 취급할 수 있다.
+
+### 2. `toRelativeKoreanString` 을 알림에 쓰면 **모든 행이 "마감"** 으로 찍힌다
+
+그 함수는 마감까지 **남은** 시간 전용이라 과거 시각에 `"마감"` 을 반환한다(`RelativeTimeFormat.kt:27`).
+**알림 시각은 전부 과거다.** → 신규 포맷터(T-D2). 🔴 **재발 방지는 네이밍으로** — 두 함수가 나란히 있으면
+다음 사람이 또 가까운 걸 집는다. 이름에 방향(남은/지난)을 드러내고 KDoc 에 서로 교차로 금지를 박는다.
+
+## 오픈 이슈
+
+1. ~~읽음 처리를 1차에 넣나~~ → ✅ **(B) 확정** (비범위 절 참조)
+2. ~~페이지네이션~~ → ✅ **커서 확정.** CLAUDE.md 프로젝트 규약으로 승격(이 feature 가 최초 도입)
+3. **알림 탭 후 그 알림의 대상이 사라진 경우**(예: 삭제된 챌린지) — challenge-result 때 실측된
+   `code 705` 경로가 있다. 목록에서도 같은 처리인지 확인 — **미해결**
+4. `EmptyStateCard`(`:core:ui`)는 **CTA 가 필수 파라미터**라 알림 빈 상태에 안 맞을 수 있다(보관함이 같은 이유로
+   기각한 선례). 세 번째 변종이 되는지 T-D1 에서 확인하고, 그렇다면 명시만 — **통합은 백로그 정리 묶음에서**

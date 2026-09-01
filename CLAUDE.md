@@ -45,7 +45,7 @@
 - feature-id는 kebab-case 명사형. `user-login` (O), `viewUserProfile` (X).
 - `api-contract.md` 상태 전이: `draft` → `negotiating` → `confirmed`. `confirmed` 후 변경은 `change-log.md`에 기록.
 - **시간 포맷은 `yyyy-MM-dd HH:mm:ss` (날짜 전용은 `yyyy-MM-dd`), 전부 KST 기준** — [ADR-0010](docs/decisions/0010-datetime-model-localdatetime.md). **ISO-8601이 아니다**(ISO는 `T` 구분자를 요구한다). `T`·`Z`·offset·밀리초를 붙이지 않으며, 서버·모바일 양쪽이 `T` 구분자와 `Z` suffix를 **거부하고 그 거부를 테스트로 고정**하고 있다. 타입은 서버 `java.time.LocalDateTime`/`LocalDate`, 모바일 `kotlinx.datetime.LocalDateTime`/`LocalDate`. DB는 `timestamp without time zone`에 **KST 벽시계 값**으로 저장한다(컬럼 주석에 명시됨).
-- 페이지네이션은 프로젝트 전체에서 한 방식으로 통일.
+- 페이지네이션은 프로젝트 전체에서 한 방식으로 통일 — **방식 확정: 커서(`?cursor={lastId}&size=N` → `nextCursor: Long?`)** (2026-09-01, notification-list 가 최초 도입). offset 을 기각한 이유: 목록 머리에 새 행이 들어오면 페이지가 밀려 같은 항목이 다시 나오는데, **알림·피드처럼 머리에 append 되는 목록에서는 그게 상시 조건**이다. 정렬·커서 키는 **`id DESC`**(`created_at` 은 서버가 만드는 값이라 시계 보정에 밀리면 id 순서와 어긋난다 — 표시는 시각, 순서는 id). `hasNext` 불리언 대신 **절대값 `nextCursor`**(mypage 선례). ⚠️ 기존 목록 4종(친구·받은 요청·랭킹·보관함)은 **지금 따라 고치지 않는다** — 보관함은 월이 이미 경계고 나머지는 규모 신호가 없다. **다음에 도입할 때 이 shape 을 따른다.**
 - **비율 표기(승률·패율)의 분모는 총 챌린지 수(무승부 포함)** — 서버 `lossRateOf` 선례를 전 화면에 승계 (2026-08-26 확정, mypage design §1.2.5). ⚠️ **Lovable 목데이터(mypage 승률 70%)는 무를 뺀 산수라 이 규칙과 어긋난다** — 정본 목데이터를 보고 분모를 바꾸지 마라, 이 규칙이 이긴다. 반올림은 서버와 동일하게 HALF_UP.
 - summary.md의 테스트 결과는 반드시 숫자로: "단위 12/12 passed" (O), "테스트 통과" (X).
 - 개별 에이전트를 우회하여 mobile/backend 레포에 직접 커밋하지 않는다.
