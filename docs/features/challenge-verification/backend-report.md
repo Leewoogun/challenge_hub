@@ -1,5 +1,17 @@
 # Backend Report — challenge-verification
 
+> 🔴 **폐기 경고 — 이 문서의 재제출·캐시 서술은 더 이상 사실이 아니다.**
+>
+> - **재제출 = 전면 거부(`code=700` `이미 인증을 완료했어요`)** → **폐기.** 현행은
+>   **`last-write-wins`** — 마감 전까지 무제한 교체, 마지막 등록본이 최종이다.
+> - **재제출 재시도 전 status 선행 조회(회복 절차)** → **소멸.** 그냥 다시 올린다.
+> - **사진 캐시 `max-age=86400`** → **`no-cache` + ETag/304.**
+>
+> 개정: [verification-photo-replace](../verification-photo-replace/spec.md) (2026-09-02).
+> 🔴 **정본은 [api-contract.md](./api-contract.md) 와 [change-log.md](./change-log.md) 다.**
+> 아래 본문은 2026-08 시점 기록으로 보존하며, **계약으로 인용하지 마라.**
+
+
 - **작성일**: 2026-08-14 by backend-dev · 🔴 **2026-08-18 개정 2회** (1차 업로드 multipart 전환 / 2차 조회 JWT 전환)
 - **레포**: `challenge-server` (main, **미커밋** — 커밋은 사용자 몫)
 - **계약**: [api-contract.md](./api-contract.md) — ✅ **`confirmed`** (2026-08-18 개정분은 [change-log.md](./change-log.md) 등재)

@@ -7,6 +7,13 @@
 - **선행**: [challenge-verification](../challenge-verification/summary.md)(사진 제출·조회) · [challenge-result](../challenge-result/summary.md)(자정 판정 배치)
 - **필요 결정**: 🔴 **ADR 미작성** — 외부 AI 제공자 도입 + 진위 판정 원안 반전은 ADR 대상이다 (§7)
 
+> 🔴 **2026-09-02 분할 — 사진 교체는 이 feature 에서 빠졌다.**
+> 사용자 결정으로 **사진 교체를 먼저 개통**하고 AI 판별을 그 위에 얹는다.
+> **[verification-photo-replace](../verification-photo-replace/spec.md) 가 그 셋을 소유한다** —
+> 재제출 허용(§1 포함 4·§4 T-B3) · 재촬영 UI(§4 T-M1) · 회복 절차 제거.
+> **이 spec 에서 그 셋을 실행하지 마라.** 아래 서술은 분할 전 원안이며,
+> 이 feature 의 실행 범위는 **AI 판별부만**이고 착수 전제는 *"사진 교체가 이미 개통돼 있다"* 이다.
+
 ## 배경
 
 현재 승리 조건은 **"인증 이미지가 있느냐 없느냐"** 뿐이다. 아무 사진이나 올려도 `VERIFIED` 가
@@ -32,7 +39,8 @@
 | 판정 배치 (`:batch`, `@Scheduled`, 소급 판정) | ✅ challenge-result 에서 개통 |
 | 사진이 서버 로컬 폴더에 존재 | ✅ ADR-0011. **서버가 자기 디스크에서 읽으면 되고, 앱이 재업로드할 필요가 없다** |
 | 앱의 업로드 전 리사이즈 | ✅ 실측 115~138KB (목표 500KB) — 외부 API 전송에도 충분히 작다 |
-| **재제출 정책** | 🔴 **전면 거부** (challenge-verification api-contract §3) — **이번에 뒤집는다.** §1 |
+| **재제출 정책** | ✅ **`last-write-wins` — 2026-09-02 개통됨** (verification-photo-replace). *"전면 거부라 이번에 뒤집는다"* 던 원안 서술은 낡았다. **이 feature 는 교체가 가능한 상태를 전제로 시작한다** |
+| **사진 캐시** | ✅ `no-cache` + ETag/304 (서버) + Coil 캐시 키 = `photoUrl + verifiedAt` (앱) — 같은 feature 에서 함께 해결됨 |
 | **외부 AI 제공자 호출** | ❌ **0건 — 이 프로젝트 최초다.** 키 관리·타임아웃·실패 처리 전부 신규 |
 | Lovable 디자인 | ❌ 반려 사유를 보여줄 화면이 없다. 결과 표시 자체가 디자인 없이 진행된 상태 (challenge-result T-M2) |
 

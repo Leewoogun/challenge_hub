@@ -37,6 +37,10 @@
 
 ### 🔴 §0.1 재제출 거부의 진짜 사유 — spec 에 적은 것보다 깊었다
 
+> ✅ **이 절의 결론은 2026-09-02 [verification-photo-replace](../verification-photo-replace/spec.md) 로 이행됐다.**
+> 아래 서술의 *"거부 지점"* · *"현행 KDoc"* 은 **이행 전 상태**다 — 그 코드는 이미 없다.
+> 논거 자체(전제 소멸)는 계약 개정의 근거로 `change-log.md` 에 등재돼 있어 여전히 유효하다.
+
 `VerificationService.submit()` KDoc 원문:
 
 > *"멱등 성공으로 두면 **사용자가 다시 찍어 올린 사진이 조용히 버려지고 앱은 성공이라고 답한다** —
