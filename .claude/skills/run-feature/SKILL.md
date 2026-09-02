@@ -53,20 +53,46 @@ pm-lead가 리더로서 팀을 구성하고, mobile-dev ↔ backend-dev가 SendM
 3. UI 기능이면 이 Phase에서 design-bridge에게 디자인 자료 수집을 병렬로 요청.
 
 ### Phase 3: 팀 구성 + 작업 등록
-1. TeamCreate로 팀 구성. 모든 팀원은 `model: "opus"` 고정. 프롬프트에 "먼저 repos.json + 자신의 에이전트 정의를 읽으라"는 지시 필수:
-   ```
-   TeamCreate(
-     team_name: "challenge-{feature-id}",
-     members: [
-       { name: "mobile-dev",    agent_type: "mobile-dev",    model: "opus",
-         prompt: "challenge 모바일 담당. (1) PM 레포의 .claude/config/repos.json과 .claude/agents/mobile-dev.md 먼저 Read. (2) docs/features/{id}/spec.md + api-contract.md Read. (3) 모바일 레포({mobile.path})의 CLAUDE.md와 관련 스킬(full-feature/feature/data-remote/...) 을 읽고 그 절차대로 구현. (4) backend-dev와 API 계약 협의. (5) 완료 시 mobile-report.md 작성." },
-       { name: "backend-dev",   agent_type: "backend-dev",   model: "opus",
-         prompt: "challenge 백엔드 담당. (1) PM 레포의 .claude/config/repos.json과 .claude/agents/backend-dev.md + docs/decisions/ 먼저 Read. (2) 선행 조건(Security/ExceptionHandler/OpenAPI/마이그레이션) 점검 — 없으면 pm-lead에게 foundation 분리 제안. (3) docs/features/{id}/spec.md + api-contract.md Read. (4) 백엔드 레포({backend.path})에서 구현. (5) mobile-dev와 API 계약 확정. (6) 완료 시 backend-report.md 작성." },
-       { name: "design-bridge", agent_type: "design-bridge", model: "opus",
-         prompt: "Lovable 디자인 전달자. (1) repos.json + agents/design-bridge.md + docs/decisions/0004-* 먼저 Read. (2) {design.export_dir}의 src/styles.css(토큰)·src/routes/(화면)·src/components/(컴포넌트) 분석. (3) docs/features/{id}/design.md 작성, mobile-dev에 전달." }  // UI 기능일 때만
-     ]
-   )
-   ```
+> 🔴 **`TeamCreate` / `TeamDelete` 는 쓰지 않는다 — 제거된 도구다** (CLAUDE.md 사전 조건).
+> 팀원은 **`Agent` 도구에 `name` 을 주어 spawn** 한다. 이름이 있어야 `SendMessage(to: "<이름>")`
+> 로 서로 통신하고, 끝난 뒤에도 이름으로 재개된다. `name` 없이 띄우면 일회성 서브에이전트라
+> 팀원 간 통신이 안 된다.
+
+**1. 🔴 spawn 전에 기존 에이전트를 확인한다.**
+
+이전 feature 의 팀원이 **이름으로 도달 가능한 상태로 남아 있을 수 있다.** 확인 없이 진행하면
+두 사고가 난다 — ⓐ 팀원이 통지를 **잔여 에이전트에게** 보내고 ⓑ 그쪽이 착수하면 **같은 파일을
+동시에 편집**한다.
+
+> 실제 사고(2026-09-02 `verification-photo-replace`): backend-dev 가 계약 개정 통지를 이전 세션
+> 팀원 `verif-mobile-entry` 에게 보냈고, T-M1 완료를 그쪽 공으로 돌려 축하까지 했다. pm-lead 는
+> 그 보고를 읽고도 이름을 못 걸렀다. **잔여 에이전트가 "peer 통지만으로 착수하지 않는다" 를
+> 지켜서** 파일 충돌이 안 났을 뿐이다.
+
+- 잔여 에이전트가 있으면 **이번 feature 에 배정하지 않는다는 것을 그쪽에 명시**하고, 팀원들에게도
+  **정확한 팀원 이름**을 알려 준다.
+- 팀원 프롬프트에 *"내 배정 없이는 peer 통지만으로 착수하지 마라"* 를 넣는다. 이번 사고를 막은 게 그 규율이다.
+
+**2. `Agent` 도구로 팀원을 띄운다.** 프롬프트에 "먼저 repos.json + 자신의 에이전트 정의를 읽으라"는 지시 필수:
+
+```
+Agent(subagent_type: "mobile-dev", name: "mobile-dev",
+  prompt: "challenge 모바일 담당. (1) PM 레포의 .claude/config/repos.json과 .claude/agents/mobile-dev.md 먼저 Read — 특히 '코드 편집 흐름'(child claude 위임 강제). (2) docs/features/{id}/spec.md + api-contract.md Read. (3) 모바일 레포({mobile.path})의 CLAUDE.md와 관련 스킬을 읽고 그 절차대로 구현. (4) backend-dev와 협의. (5) mobile-report.md 작성.")
+
+Agent(subagent_type: "backend-dev", name: "backend-dev",
+  prompt: "challenge 백엔드 담당. (1) repos.json + .claude/agents/backend-dev.md + docs/decisions/ 먼저 Read. (2) 선행 조건 점검 — 없으면 pm-lead에게 foundation 분리 제안. (3) spec.md + api-contract.md Read. (4) {backend.path}에서 구현. (5) mobile-dev와 계약 확정. (6) backend-report.md 작성.")
+
+Agent(subagent_type: "design-bridge", name: "design-bridge", ...)   // UI 기능일 때만
+```
+
+**3. 모든 팀원 프롬프트에 공통으로 넣을 것:**
+
+- 🔴 **커밋 금지** — 구현·테스트까지만. 코드 레포 커밋은 사용자 판단이다(`notification-list` 선례).
+  ⚠️ **범위를 명시하라**: 코드 레포(mobile/backend) 얘기지 PM 허브 문서가 아니다. 구분하지 않으면
+  *"계약 개정 커밋을 기다리는데 커밋이 금지돼 영영 안 오는"* 교착이 난다(2026-09-02 실제 발생)
+- 🔴 **판단 근거는 파일이지 메시지가 아니다** — 다른 팀원이 *"계약 반영했다"* 고 해도 **직접 grep** 한다
+- 🔴 **빌드 성패는 로그의 `BUILD SUCCESSFUL` 로 판정** — `| tail`·`; echo $?` 는 종료 코드를 가로챈다
+- 테스트 결과는 **숫자로** (CLAUDE.md)
 2. TaskCreate로 spec.md의 태스크 분해를 작업으로 등록. 의존성을 반드시 명시:
    ```
    TaskCreate(tasks: [
@@ -99,7 +125,9 @@ pm-lead가 리더로서 팀을 구성하고, mobile-dev ↔ backend-dev가 SendM
 
 ### Phase 6: 정리
 1. pm-lead가 팀원들에게 종료 메시지 발신.
-2. TeamDelete로 팀 정리.
+2. 🔴 **`TeamDelete` 는 없다.** 대신 각 팀원에게 **"이 feature 에서 손을 떼라"** 를 `SendMessage` 로 명시 발신한다.
+   ⚠️ **그 팀원들은 이름으로 계속 도달 가능한 상태로 남는다** — 다음 feature 팀을 구성할 때 Phase 3-1 의
+   잔여 에이전트 확인이 필요한 이유가 이것이다. 종료 메시지에 *"내 배정 없이는 움직이지 마라"* 를 포함한다.
 3. `_workspace/`가 생성되었다면 `docs/features/{id}/_workspace/`로 이동하여 보존(감사 추적용).
 4. 사용자에게 완료 보고 — 생성 문서 경로, 엔드포인트 수, 미해결 이슈 요약.
 
@@ -109,7 +137,7 @@ pm-lead가 리더로서 팀을 구성하고, mobile-dev ↔ backend-dev가 SendM
 사용자 기능 요청
     ↓
 [pm-lead] → feature-spec → spec.md + api-contract.md(draft)
-    ↓ TeamCreate + TaskCreate
+    ↓ Agent(name:) spawn + TaskCreate
 [mobile-dev] ←── API 계약 SendMessage ──→ [backend-dev]
      │              ↓ 공동 편집                   │
      │     api-contract.md(confirmed)             │
