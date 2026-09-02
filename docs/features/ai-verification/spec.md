@@ -40,7 +40,13 @@
 | 사진이 서버 로컬 폴더에 존재 | ✅ ADR-0011. **서버가 자기 디스크에서 읽으면 되고, 앱이 재업로드할 필요가 없다** |
 | 앱의 업로드 전 리사이즈 | ✅ 실측 115~138KB (목표 500KB) — 외부 API 전송에도 충분히 작다 |
 | **재제출 정책** | ✅ **`last-write-wins` — 2026-09-02 개통됨** (verification-photo-replace). *"전면 거부라 이번에 뒤집는다"* 던 원안 서술은 낡았다. **이 feature 는 교체가 가능한 상태를 전제로 시작한다** |
-| **사진 캐시** | ✅ `no-cache` + ETag/304 (서버) + Coil 캐시 키 = `photoUrl + verifiedAt` (앱) — 같은 feature 에서 함께 해결됨 |
+| **사진 캐시 (서버)** | ✅ `no-cache` + ETag/304 — verification-photo-replace 에서 개통 |
+| **사진 캐시 (앱)** | 🔴 **미구현.** Coil 이 URL 을 캐시 키로 쓴다 → **교체해도 옛 사진이 보인다.** 해법(`memoryCacheKey`/`diskCacheKey` = `photoUrl + verifiedAt`)은 확정됐으나 **코드에 없다** — 2026-09-02 backend-dev 실측: `grep -rn "memoryCacheKey\|diskCacheKey" --include="*.kt"` → **0건**, `VerificationPhoto.kt:103` 이 `model = url` 만 넘김 |
+
+> 🔴 **위 앱 항목을 ✅ 로 바꾸기 전에 반드시 grep 으로 확인하라.** 2026-09-02 pm-lead 가
+> **자기 승인을 완료로 적는 실수**를 했다(backend-dev 적발). 이 실패는 조용하다 — 에러도
+> 로그도 없고 앱은 정상적으로 캐시를 쓴 것뿐이라, ✅ 로 닫히면 **아무도 구현하지 않고
+> 아무도 실패를 못 본다.** 🔴 **이 표는 실측만 적는다. 판정·승인·계획은 적지 않는다.**
 | **외부 AI 제공자 호출** | ❌ **0건 — 이 프로젝트 최초다.** 키 관리·타임아웃·실패 처리 전부 신규 |
 | Lovable 디자인 | ❌ 반려 사유를 보여줄 화면이 없다. 결과 표시 자체가 디자인 없이 진행된 상태 (challenge-result T-M2) |
 
