@@ -63,9 +63,19 @@
 | `remote:datasource` | 39 / 0 | ⚠️ **미컴파일** (아래) |
 | **합계** | **112 / 0** | **73 / 0** |
 
-- `detail` 46→52(캐시 키 테스트 6건 신규), `verify` 21(회복 절차 5건 삭제 + 신규 1건)
+- `detail` 46→52(캐시 키 테스트 6건 신규), `verify` 21(회복 절차 5건 삭제 + 신규 1건),
+  `remote:datasource` 39(`Challenge` 23 · `Login` 8 · `Verification` 8)
 - `:composeApp:linkDebugFrameworkIosSimulatorArm64` 를 포함해 **`Route.Challenge.Verify` 필드 추가 배선이
   실제로 컴파일되는지**까지 확인
+
+> 🔵 **`detail` XML 이 `01:12`, 나머지가 `01:22` 인 것은 stale 이 아니다.** 마지막 실행은 `verify` 와
+> `remote:datasource` 만 건드려 Gradle 이 `detail` 을 `UP-TO-DATE` 로 건너뛰었다 — 즉 **입력이 한 글자도
+> 안 바뀐 동일 코드에 대한 결과**다.
+>
+> 🔴 **여기서 검증 규칙이 하나 다듬어졌다: iOS XML 의 stale 여부는 timestamp 만으로 판정하면 안 되고
+> `UP-TO-DATE` 여부까지 봐야 한다.** 과거 사고(challenge-verification T7a·T7b)는 *입력이 바뀌었는데도*
+> 옛 XML 을 읽은 경우였다. timestamp 단독을 규칙으로 삼으면 **정상적인 증분 빌드를 매번 stale 로
+> 오탐**하게 된다. (pm-lead 가 준 지침을 mobile-dev 가 정정한 것)
 
 ## 결정 사항
 
