@@ -4,7 +4,8 @@
 >
 > **자동 갱신**: pm-lead가 `report-and-document` 스킬로 feature를 마무리할 때마다 summary.md의 미해결 이슈를 본 백로그에 자동 추가. 임의 시점 재정리는 "백로그 정리해줘" 한 마디로 pm-lead에게 요청.
 
-- **마지막 갱신**: 2026-09-01 (**feature `notification-list` 완료** — *알림이 오는데 볼 곳이 없던 상태를 닫았다.* 조회 API 3종 + 신규 `:feature:notification` + 홈 벨 뱃지 점등. 🔴 **양 레포 미커밋이라 `implemented`**(서버 12파일·앱 34경로). 서버 589/540 passed 회귀 0 + throwaway DB 실구동 21항목 / 모바일 Android 162 · iOS 162 failures 0. 커서 페이지네이션 프로젝트 최초 도입 → **ADR-0012 accepted**. 부수: `:core:utils` iOS 개통(rename 1건 → 35건), **앱 `PlaceholderScreen` 소비처 0건**. 이 feature 의 수확은 *"조용히 틀리는 것" 5건 적발* — 포맷터 오용(전 행 "마감") · 서버 타입 강등 · 폴백 KDoc 의 거짓 근거 · 정렬 축 · 숫자 5중 복제)
+- **마지막 갱신**: 2026-09-02 (**feature `verification-photo-replace` implemented** — *인증 사진을 마감 전까지 바꿀 수 있다.* 재제출 **전면 거부 → `last-write-wins`**. **마이그레이션 0 / 새 엔드포인트 0 / 요청·응답 shape 변경 0** — 바뀐 건 같은 요청에 대한 **서버의 행동**뿐이다. 서버 **574/574**(50 skipped=Docker) + throwaway DB 실기동 / 모바일 **Android 112 · iOS 73 failures 0**(pm 이 XML 직접 집계). 🔴 **양 레포 미커밋 + T-I1 실기 0건**. 🔑 **실제 난점은 재제출이 아니라 캐시였다** — 사진 경로가 교체돼도 그대로라 서버·앱 양쪽이 옛 사진을 캐시하고 있었고, 그대로 뒀으면 *"다시 찍어도 화면이 안 바뀌는데 에러도 로그도 없는"* 상태로 배포됐다(테스트는 전부 초록). **두 팀원이 각자 계층에서 독립 발견** → 서버 `no-cache`+ETag / 앱 Coil 캐시 키 `photoUrl+verifiedAt`. 🔴 **부수 발견: `:remote:datasource` iOS 테스트가 한 번도 컴파일된 적 없다**(백틱 이름의 `,()` — Kotlin/Native 금지). 🔴 **T-M4 를 조용히 되돌릴 계약 문장 1건 삭제**. 🔴 **pm 자기 정정 3건** — 해제 기준 자기모순(교착 직전) / **승인을 실측표에 ✅ 완료로 기록** / 남의 관측을 확인 없이 내 질문으로 전달. ⚠️ 팀 운영 사고 1건 — 이전 세션 잔여 팀원에게 통지 오발신(무해 종료, `run-feature` 에 잔여 확인 단계 신설))
+- 직전 갱신: 2026-09-01 (**feature `notification-list` 완료** — *알림이 오는데 볼 곳이 없던 상태를 닫았다.* 조회 API 3종 + 신규 `:feature:notification` + 홈 벨 뱃지 점등. 🔴 **양 레포 미커밋이라 `implemented`**(서버 12파일·앱 34경로). 서버 589/540 passed 회귀 0 + throwaway DB 실구동 21항목 / 모바일 Android 162 · iOS 162 failures 0. 커서 페이지네이션 프로젝트 최초 도입 → **ADR-0012 accepted**. 부수: `:core:utils` iOS 개통(rename 1건 → 35건), **앱 `PlaceholderScreen` 소비처 0건**. 이 feature 의 수확은 *"조용히 틀리는 것" 5건 적발* — 포맷터 오용(전 행 "마감") · 서버 타입 강등 · 폴백 KDoc 의 거짓 근거 · 정렬 축 · 숫자 5중 복제)
 - **직전 갱신**: 2026-08-26(2차) (**feature `mypage` 완료** — *4탭 완성 + 계정 수명주기 마감.* 프로필·계약서 보관함(히스토리 🟡 해소)·로그아웃 실구현(🟡 해소)·회원탈퇴. 서버 464passed+throwaway 실구동 2회 / 모바일 A346·iOS259. photoDeleted additive(pm 지시 번복)·분모 통일(CLAUDE.md 승격)·실패 표시 3원칙. design 오류 6건 전부 사전 적발. 미해결: 실기 0 / KAKAO_ADMIN_KEY / ⑭)
 - 직전 갱신: 2026-08-26 (**feature `loser-ranking` 완료** — *패배의 왕좌 개통, 4탭 placeholder 0 달성.* `GET /rankings/losers` 신규 1건(9필드, 마이그레이션 0) + 랭킹 탭 실화면(Top3 포디움+수치의 명단). 서버 **417/417**+실서버 실측(정렬 4키 실데이터 재현·LEFT JOIN 폴백 계정 심어 검증) / 모바일 **A460·iOS148**(계약 필드별 대조 차이 0, 재정렬하면 깨지는 단언). 🔴 **전역 발견 2건**: ADR-0002 "항상 HTTP 200"이 인증 실패엔 거짓(실제 bare 401 — 문서가 틀렸고 서버·앱이 맞았다, 일괄 감사 백로그) / 카카오 프로필 URL 이 http 평문이라 **아바타 켜면 iOS 만 ATS 차단**(https 정규화 선행 조건 등재, fname 함정 포함). 🔴 **팀 자기 교정 3건** — 기각 사유 과장 금지 / 실측 보고와 스코프 판단 분리 / 사실의 소유자는 한 곳(+작성 중 문서로 계약 닫지 않기). 미해결: 디바이스 실기 / 디자이너 확인 12건(⑫ 1위 패배율 병치 포함))
 - 직전 갱신: 2026-08-25(2차) (**feature `challenge-result` 완료** — *이제 챌린지가 스스로 끝난다.* 첫 스케줄러(:batch)가 자정 판정+전적 집계를 단일 트랜잭션으로. 서버 392/392 + 모바일 A186/iOS165, 실데이터 소급 실측(judged=6/expired=2, 알림 0 증가, 멱등). 홈 전적 첫 실데이터化 + V10 연패 컬럼 = 개돼지 랭킹 데이터 준비 완료. 백로그 4건 해소(EXPIRED 스케줄러/집계 트리거/연패 컬럼/FCM 제외 결정 이행). 미해결: 디바이스 실기 / 결과 UI 디자이너 확인 / 히스토리 화면)
@@ -23,12 +24,15 @@
 
 | 항목 | 출처 | 담당 | 메모 |
 |---|---|---|---|
+| 🔴 **`verification-photo-replace` 실기 검증 0건 (T-I1)** | [verification-photo-replace/summary.md](./features/verification-photo-replace/summary.md) | user + mobile | 🔴 **캐시는 런타임 동작이라 단위 테스트가 원리적으로 못 잡는다.** 앱 173건이 전부 초록이어도 이 항목은 증명되지 않는다. 4항목: ① 교체 후 **같은 화면**에서 새 사진 ② 화면 나갔다 재진입 ③ 🔴 **상대가 교체 → 내 화면 재진입**(내 교체는 로컬 상태가 가려주지만 상대 것은 **순수 캐시 문제**라 여기가 진짜 위험 구간이다 — **사람이 눈으로 확인**) ④ 앱 강제종료 후 재실행(디스크 캐시). ⚠️ **실패 시 증상이 "아무 일도 안 일어남"이다** — 에러도 로그도 없고 앱은 정상적으로 캐시를 쓴 것뿐이라, 확인하지 않으면 **이 feature 가 통째로 안 먹는 채로 배포된다.** |
+| 🔴 **`:remote:datasource` iOS 테스트가 한 번도 컴파일된 적 없다** | [verification-photo-replace/summary.md](./features/verification-photo-replace/summary.md) | mobile | Kotlin/Native 가 백틱 테스트 이름의 `,` `(` `)` 를 금지하는데 그 모듈이 위반한다(**15건**, `ChallengeRemoteDataSourceImplTest`·`LoginRemoteDataSourceImplTest`). 🔴 **증거: `build/test-results/` 에 iOS 디렉터리 자체가 없다**(`testDebugUnitTest`·`testReleaseUnitTest` 뿐). 즉 **이 모듈의 iOS 커버리지가 0** 이고 그동안 Android 에서만 검증돼 왔다. 없던 타겟을 불러서 드러났다 — 안 불렀으면 계속 안 보였을 결함이다. 다른 모듈들은 이미 제약을 지키고 있어 **이 모듈만 예외**로 보인다. 고치려면 테스트 이름 15개+ 개명이 필요하다. |
 | 🔴 **`push-deeplink` 실기 검증 0건 + 미배포** | [push-deeplink/summary.md](./features/push-deeplink/summary.md) | user + mobile | **T-I1 5케이스(포그라운드 / 백그라운드 앱 생존 / 앱 종료 / 로그아웃 상태 탭 / 화면 회전)를 하나도 실행하지 않았다.** 기기·에뮬레이터·기동 중인 백엔드가 없었다. ⚠️ **spec이 "이번 설계의 핵심"으로 지목한 로그아웃 상태 탭 / 화면 회전이 미검증분에 들어간다** — 단위 테스트가 게이트 로직과 `KEYS` 완전성은 고정하지만 **`intent.removeExtra`가 실제 Activity 재생성에서 먹는지는 단위 테스트 밖**이다. 🔴 **tag 중복 제거는 자동 테스트로 증명 불가하다** — 증명된 건 *"올바른 tag를 실었다"*까지고 *"트레이에 하나만 남는다"*는 Android 시스템의 몫이라 **서버 배포 후 실기가 유일한 경로**다. `soul-oath`에서 *"테스트가 초록인 채 실기 버그 3건"*이 나온 선례가 있다. |
 
 ## 🟡 중요
 
 | 항목 | 출처 | 담당 | 메모 |
 |---|---|---|---|
+| 🟡 **`MissionCardMineFailedPreview` 가 실제로 안 나오는 화면을 그린다** | [verification-photo-replace/summary.md](./features/verification-photo-replace/summary.md) | mobile | `FAILED` → 슬롯 `NONE` 인데 Preview 는 *"다시 인증하기"* 버튼을 그린다. 🔵 **기획 판단은 이미 나와 있다 — `FAILED` 에 재시도를 열지 않는다.** `ai-verification` 이 자정 배치 판정으로 확정돼 있어 `FAILED` 가 찍히는 시점엔 이미 마감이고 **재시도 창 자체가 존재하지 않는다.** 따라서 **현재 코드가 옳고 Preview 가 낡았다** — 삭제하거나 실제 상태에 맞게 고친다. challenge-verification 때부터 어긋나 있었다. ⚠️ **`FAILED` 가 실제로 발생하기 시작하는 건 `ai-verification` 부터**이므로 그 feature 에서 함께 처리하는 것이 자연스럽다. |
 | 🟡 **모바일 코드 정리 — `flowUtil` 신설** | 사용자 지시 (2026-08-03) | mobile | **다음 모바일 작업의 우선 항목.** ⚠️ **2026-08-06 위치 실측 정정** — 원래 문구였던 *"6개 RepositoryImpl에 10곳"*은 더 이상 맞지 않다. 사용자 커밋 `0389e99 refactor: 프로젝트 아키텍처에 DataSource 추가`로 `flow { }`가 **`:remote:datasource`로 이관**됐고 RepositoryImpl은 얇은 위임체가 됐다. **사본은 그대로 9곳**(`Login` 2 / `Friends` 3 / `Challenge`·`Record`·`ActiveChallenge`·`UserInfo` 각 1). 패턴은 `flow { api().suspendOnSuccess { emit(map()) }.suspendOnFailureWithErrorHandling(onError) }` 가 매번 손으로 복제되는 구조라, 한 곳이 바뀌면 나머지가 조용히 갈린다 — `soul-oath`에서 `UnknownApiError`가 `onError`를 안 부르던 결함이 **전 repository에 동시 영향**이었던 것과 같은 결이다. ⚠️ **2026-08-14 근거 정정 — 원래 근거였던 *"인증 feature 착수 전에 접어라(`VerificationRemoteDataSource`가 10번째 사본을 만들기 전에)"* 는 무효다.** 인증 feature 는 **사진 저장 방식 미결정으로 착수 자체가 불가**하다(업로드 인프라 grep 0건). 시간 압박이 사라졌다. **그래도 지금이 적기인 이유는 따로 있다**: (1) 모바일 working tree 가 **clean** 이라 전 datasource 를 훑는 리팩터가 다른 미커밋 변경과 겹치지 않는다 — 겹치면 리뷰가 불가능해진다, (2) **서버 선행이 필요 없는 유일한 모바일 작업**이다(알림목록·랭킹·인증 전부 서버/디자인 대기), (3) 회귀 안전망이 있다(`remote:datasource` 22건 + `data:repositoryImpl` 14건 초록). 🔵 **"10번째 사본 방지"는 알림 목록 feature 로 성립한다** — `NotificationRemoteDataSource` 가 정리된 헬퍼의 첫 소비자가 되게 순서를 잡으면 된다. (`:core:utils`의 기존 `FlowUtil.kt`는 **다른 것**이다 — StateFlow `withData`/`updateWithData` ViewModel 헬퍼라 이 건과 무관.) |
 | 🟡 **알림 문구 2종 미확정 + 전역 톤 통일** | [push-deeplink/summary.md](./features/push-deeplink/summary.md) · [push-fcm/summary.md](./features/push-fcm/summary.md) | user | **사용자 결정 사안.** `CHALLENGE_REQUEST`만 ✅ 확정(격식체)이고 `CHALLENGE_ACCEPTED`(`계약 완료.`) / `CHALLENGE_REJECTED`(`ㅠㅠ`)는 🟡 **초안값**이다. 🔴 **2026-08-08 계약 §3이 이걸 "3종 전부 확정"으로 잘못 요약한 것을 정정했다** — 근거로 인용한 커밋 `e76c64c`가 오히려 2종을 초안으로 표시한 커밋이었고, **문자열 교체와 문구 확정을 같은 사건으로 읽은** 것이다(세 번째 드리프트). 부수로 KDoc 오기도 잡혀 **갈린 축이 존댓말/반말이 아니라 `title`**임이 밝혀졌다(`body`는 셋 다 합니다체). ⚠️ **임의로 통일하지 마라 — 확정분을 초안에 맞추는 방향은 특히 안 된다**(`NotificationMessages` KDoc 지시, 유효). 문구는 `NotificationMessages` 한 곳에만 있어 확정 시 그 파일만 고치면 된다. |
 | 🟡 **모바일 하네스 갭 — 신규 core 모듈 생성이 매번 수작업** | [challenge-verification/mobile-report.md](./features/challenge-verification/mobile-report.md) | mobile | `:core:push`(push-fcm) → `:core:permission` → `:core:camera`(challenge-verification)로 **세 번째 반복**이다. ⚠️ `challenge-app` 의 Skill 매핑 테이블에 **신규 core 모듈 생성 스킬이 없다.** 🔴 게다가 기존 `scripts/create-core-module.sh` 는 **쓸 수 없는 상태다** — pm-lead 실측: `PACKAGE_PATH="com/lwg/base/$MODULE_NAME"` 인데 프로젝트 패키지는 `com.lwg.challenge` 다(ADR-0003 리네임 이후 스크립트가 안 따라갔다). `namespace = "com.lwg.MODULE_NAME"` 도 치환이 어긋나 있다. **mobile-dev 가 스크립트를 못 쓰고 손으로 만들었다.** 조치는 둘 중 하나 — 스크립트를 고치거나, 스킬로 승격하거나. **네 번째 모듈이 생기기 전에 정하는 게 이득**이지만, 착수를 막는 항목은 아니다. |
@@ -147,6 +151,8 @@
 
 | 항목 | 사유 | 후속 영향 |
 |---|---|---|
+| 🔵 **`verification-photo-replace` 양 레포 미커밋** | 커밋은 사용자 판단 (`notification-list` 선례와 동일). 서버·앱 모두 unstaged | 커밋 전까지 상태가 `implemented` 에 머문다. T-I1 실기도 배포 이후에 의미가 있다 |
+| 🎨 **디자이너 확인 6건 — 재촬영 UI + Done 문구** | Lovable 에 **인증/카메라 화면이 0건**이고 "재촬영" 상태도 없어 mobile-dev 가 기존 토큰·패턴으로 구현했다. design-bridge 를 팀에서 제외한 이유이기도 하다 | 문구 `다시 찍기` / `IconTextButtonStyle.Outlined`(주 액션이 아니라서 — Filled 면 완료 표시보다 강조돼 *"아직 인증 안 됐나"* 로 읽힌다) / `PhotoCamera` 아이콘 / 사진 아래 12dp / `bold16` / 🔴 **완료 뱃지를 그대로 둔 채 재촬영 버튼을 얹는 조합에 이 앱 선례가 없다** / Done 문구 🟡 초안 `사진이 교체됐어요. 상대는 최신 사진을 보게 돼요`. Preview: `ChallengeDetailScreenVerifiedWithRetakePreview`, `MissionCardMineWithPhotoAndRetakePreview` |
 | ~~Kakao `account_phone_number` scope 승인~~ | ~~Kakao 개발자 콘솔 신청·승인~~ | ✅ **2026-08-06 대기 해제(폐기)** — 기획서 §2.2에서 연락처 매칭이 §6으로 이동. **외부 의존 대기 항목이 하나 줄었다.** 되살리려면 위 🟢 pepper 항목이 선결. |
 | 🔴 **`KAKAO_ADMIN_KEY` 발급** (카카오 콘솔 — 사용자 직접) | 사용자 콘솔 작업 | **회원탈퇴의 카카오 unlink 가 이 키로 동작** (admin key 방식 — 서버가 카카오 토큰을 저장하지 않아 토큰 방식은 카카오 세션 만료 시 탈퇴 자체가 불가). 미설정이면 unlink 건너뛰고 DB 익명화만 수행(WARN — FCM 키 선례와 같은 fail-soft). 🔴 **운영 배포 체크리스트 항목.** |
 | 🔴 **Apple Developer Account ($99/년) 구입** | iOS 빌드/배포 **+ APNs 인증키 발급** | iOS TestFlight 배포 시점 + 🔴 **iOS 푸시 수신 전체.** ⛔ **`push-fcm`의 iOS 수신이 여기에 막혀 있다 — 기술 선택이 아니라 경로 부재다.** APNs 인증키(`.p8`)와 Push Notifications capability가 유료 계정 전용이고, **시뮬레이터로도 우회 불가**(APNs 토큰을 못 받아 FCM 토큰 자체가 안 나온다). `soul-oath` iOS 실기 미검증(기기 부재)과 성격이 다르다 — **결제 전에는 부분 검증조차 불가능**하다. ADR-0005("iOS+Android 동시 MVP")가 처음 깨지는 지점이라 **결정 기록 필요**. 현재 iOS actual은 전부 no-op 스텁이고 `iosApp/` 무접촉, `.entitlements` 0건(정상 상태 — 무료 계정으로 켜면 실기 빌드가 깨진다). |
@@ -175,6 +181,8 @@
 ## 분류별 보기 (담당자 기준)
 
 ### 사용자 액션 (user)
+- 🔴 **`verification-photo-replace` T-I1 실기 4항목** — 특히 ③ **상대가 교체 → 내 화면 재진입**(캐시는 단위 테스트가 원리적으로 못 잡는다. 실패 증상이 *"아무 일도 안 일어남"*)
+- **`verification-photo-replace` 양 레포 커밋 결정** (서버·앱 unstaged)
 - 🔴 **컨테이너 런타임 설치** (Docker Desktop / OrbStack / Colima 아무거나) → 통합 테스트 45건 일괄 해소
 - **4개 레포 커밋 결정** (PM 허브 / 백엔드 / 모바일 / Lovable — challenge-create 누적, 에이전트 git 금지 룰)
 - **challenge-create 실기기 시각 검증** (위저드 / 받은 도전장 / 수락 다이얼로그 iOS IME + 로컬 네트워크 권한 "허용")
@@ -183,6 +191,8 @@
 - Refresh rotation E2E smoke (access 짧게 → 무자각 갱신 / refresh 만료 → 로그인 자동 이동 / V1 가입자 강제 재로그인 — auth-refresh-rotation 후속)
 
 ### 모바일 (mobile)
+- 🔴 **`:remote:datasource` iOS 테스트 미컴파일** — 백틱 이름의 `,()` (Kotlin/Native 금지) 15건. **그 모듈 iOS 커버리지 0**
+- 🟡 **`MissionCardMineFailedPreview` 정정/삭제** — `FAILED` → 슬롯 `NONE` 인데 Preview 는 재시도 버튼을 그린다 (`ai-verification` 에서 함께)
 - 위저드 시스템 백 버튼 (`PlatformBackHandler` → `:core:ui` 승격)
 - challenge-create iOS 유닛 테스트 (`:feature:home` / `:feature:challenge:create`)
 - `SearchProfilePlaceholder` 4번째 사본 흡수
@@ -229,6 +239,7 @@
 - 챌린지 deadline UTC 저장 정책 명문화 (생성 feature 진입 시)
 
 ### 디자인 (design)
+- 🎨 **재촬영 UI 6건** (verification-photo-replace) — `다시 찍기` 문구 / `Outlined` 스타일 / `PhotoCamera` 아이콘 / 사진 아래 12dp / `bold16` / 🔴 **완료 뱃지를 둔 채 재촬영 버튼을 얹는 조합에 앱 선례 없음** + Done 문구 🟡 초안
 - Lovable 레포 lint 오염 37 errors — 미접촉 13개 파일(login·notifications·friends·ChallengeCard·ui/* 등)의 기존 prettier 위반. 새 작업 diff 가 번지지 않게 별건 일괄 정리 (2026-08-26 archive 프리뷰 중 실측)
 - 영혼의 맹세 화면 + **인증 촬영 화면** (디자이너 대기 화면 2개 — 촬영은 구현 완료·교체 전제)
 - 챌린지 상세 디자이너 확인 7건 (challenge-verification/design.md §7 — 차단 없음, 승인 대장)
