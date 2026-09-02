@@ -4,6 +4,15 @@
 - **완료일**: 2026-08-25
 - **상태**: **completed** (Android 실기 기준. iOS 는 컴파일·단위 테스트까지 — 촬영 실동작은 실기기 필요)
 
+> 🔴 **이 문서와 같은 폴더의 `mobile-report.md` · `backend-report.md` · `design.md` 는 2026-08-25 시점의
+> 기록이다. 재제출 정책은 그 뒤에 뒤집혔다.**
+> **재제출 = 전면 거부(`code=700` `이미 인증을 완료했어요`)** 는 **폐기됐고**, 현행은
+> **`last-write-wins`(마감 전까지 무제한 교체)** 다 —
+> [verification-photo-replace](../verification-photo-replace/spec.md) (2026-09-02).
+> §5 사진 캐시도 `max-age=86400` → `no-cache` + ETag 로 바뀌었다.
+> 🔴 **현행 계약은 [api-contract.md](./api-contract.md) 와 [change-log.md](./change-log.md) 뿐이다.
+> 아래 본문과 옛 리포트의 재제출·캐시 서술을 계약으로 읽지 마라.**
+
 ## 구현 개요
 
 핵심 플로우의 *"양측 인증(카메라)"* 구간 개통. 챌린지 상세의 "인증하기" → **즉석 촬영(갤러리 차단) →
