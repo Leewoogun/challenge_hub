@@ -14,7 +14,7 @@ T-B1 ~ T-B5 **전부 구현 완료.** 한 문장으로: **기권은 `challenges.
 | T-B1 `ChallengeVerdict` 확장 | ✅ | `Forfeit` enum 신설 + `decide` 파라미터 1개. KDoc 판정 표 4행 → **6행**으로 갱신 |
 | T-B2 마이그레이션 | ✅ | `V12__challenge_forfeit.sql` — `forfeited_by` 1컬럼. **`forfeited_at` 은 만들지 않았다** |
 | T-B3 엔드포인트 | ✅ | `POST /challenges/{id}/forfeit` + `ChallengeForfeitService`. `judge()` 를 그대로 호출 |
-| T-B4 알림 | 🟡 **타입만 열림** | `CHALLENGE_FORFEITED` 선언 + 이벤트 발행까지 완료. **문구는 forfeit-mobile 회신 대기** (아래 §미해결 1) |
+| T-B4 알림 | ✅ | `CHALLENGE_FORFEITED` 선언 + 이벤트 발행 + **문구 삽입 = 발송 ON**(2026-09-05, forfeit-mobile 배선 회신 후). 실기동으로 row 생성 확인 |
 | T-B5 테스트 | ✅ | 신규 **31건**, 회귀 **0**. spec §3 의 🔴 항목 전부 고정 |
 
 ### 🔑 이 feature 에서 실제로 어려웠던 것은 **동시성**이었다
@@ -229,6 +229,35 @@ Started ChallengeServerApplicationKt in 4.815 seconds
 ⚠️ 그 픽스처는 *"서버가 실제로 이렇게 보낸다"* 를 증명하는 파일인데 **더 이상 그렇지 않은
 과거를 증명하고 있다.** mobile 에 통지했다(교체 또는 시점 라벨 부착은 그쪽 판단).
 
+#### 3차 실기동 — **발송 스위치가 실제로 켜졌는지** (throwaway DB `challenge_forfeit_notify`, 포트 18083)
+
+문구 3줄은 테스트로도 덮이지만(`NotificationMessagesTest`), **dispatcher 가 실제로 row 를
+남기는지**는 그 테스트가 보지 않는다. 1차 실기동에서 *"row 0건 + WARN"* 을 관측해 뒀으므로
+**그게 뒤집혔는지**를 같은 방식으로 확인했다.
+
+```
+ user_id |        type         |    title    |             body             | reference_id
+       2 | CHALLENGE_REQUEST   | 영혼의 맹세 | 테스터1과 계약을 하시렵니까? |            1
+       1 | CHALLENGE_ACCEPTED  | 계약 완료.  | 테스터2님이 수락했습니다     |            1
+       1 | CHALLENGE_FORFEITED | 계약 파기.  | 테스터2님이 기권했습니다     |            1
+```
+
+| 확인 | 1차(문구 없음) | 3차(문구 있음) |
+|---|---|---|
+| `CHALLENGE_FORFEITED` row | **0건** | ✅ **1건** |
+| 수신자 | — | ✅ `user_id = 1` = **이긴 쪽**(기권자는 2) |
+| `reference_id` | — | ✅ `challengeId` |
+| dispatcher WARN *"문구가 정의되지 않은…"* | 1건 | ✅ **0건** |
+
+🔴 **`referencePending` 도 알림 목록 API 원문으로 확인했다** — 계약 §3 이 `null` 로 확정한 값이
+실제로 그렇게 나간다:
+
+```json
+{"notificationId":3,"type":"CHALLENGE_FORFEITED","body":"테스터2님이 기권했습니다","referenceId":1,"referencePending":null,"createdAt":"2026-09-05 23:29:39"}
+```
+
+정리 완료: DB drop / 18083 종료 / 스크래치 삭제.
+
 #### ⚠️ 로그에서 잠금을 찾을 때 — `for update` 로 grep 하면 **0건이 나온다**
 
 Hibernate 6 의 PostgreSQL 방언이 `PESSIMISTIC_WRITE` 를 **`for no key update`** 로 렌더한다.
@@ -364,15 +393,32 @@ spec 은 pm-lead 소관이라 보고했다.
 
 ### 🔴 오늘 이 형태가 다섯 번째다
 
-| # | 어디 | 무엇이 낡았나 |
-|---|---|---|
-| 1~3 | `ChallengeHistoryService` · `ChallengeHistoryResponse` · `ChallengeHistoryView` KDoc | *"결과 4개가 인증 상태를 유일하게 결정"* — 기권이 일대일을 깼다 |
-| 4 | 이 리포트 §결정 근거 1 | *"705 는 확인을 강제한다"* — 뒤에서 정정하고 앞을 안 고쳤다 |
-| 5 | **`confirmed` 계약 §3** | *"`referencePending = false`"* — 아래 소절이 기각한 값 |
+| # | 어디 | 무엇이 낡았나 | 누가 찾았나 |
+|---|---|---|---|
+| 1~3 | `ChallengeHistoryService` · `ChallengeHistoryResponse` · `ChallengeHistoryView` KDoc | *"결과 4개가 인증 상태를 유일하게 결정"* — 기권이 일대일을 깼다 | backend-dev |
+| 4 | 이 리포트 §결정 근거 1 | *"705 는 확인을 강제한다"* — 뒤에서 정정하고 앞을 안 고쳤다 | pm-lead·forfeit-mobile |
+| 5 | **`confirmed` 계약 §3** | *"`referencePending = false`"* — 아래 소절이 기각한 값 | forfeit-mobile |
+| 6 | `NotificationMessages` KDoc | *"**목록 화면이 아직 없어** 재조립 요구가 없다"* — `notification-list` 가 2026-09-01 개통했다 | forfeit-mobile(문의로 유발) |
 
 🔑 **1~3 은 남의 문서였고 4~5 는 내 것이다.** 그리고 **내 것 둘 다 "뒤에서 새로 쓰면서 앞을
 안 고친" 같은 실수**다. 새 소절을 **추가**할 때 그 소절이 기존 문장을 거짓으로 만드는지
 확인하지 않은 것이 원인이다.
+
+### 6번은 **질문 하나가 유발했다** — 그리고 문구 결정에 직접 걸린다
+
+forfeit-mobile 이 *"`NotificationMessages` KDoc 이 `title` 은 푸시에서만 쓰인다는 걸 아느냐"*
+고 물어서 확인하다 나왔다. 그 파일은 *"목록 화면이 아직 없어"* 를 박제 결정의 **첫 번째 근거**로
+들고 있었는데, `notification-list` 가 개통하면서 그 전제가 죽었다. 남은 근거만으로 결론은
+그대로라 **결론 유지 + 근거 축소**로 정정했다.
+
+🔴 **함께 넣은 것이 더 중요하다** — `Message.title` 이 **푸시에서만 쓰이고 목록 화면은 그리지
+않는다**는 사실을 그 파일에 명시했다. 서버는 이미 이걸 두 곳(`NotificationListResponse` KDoc,
+`NotificationControllerTest`)에 적어 뒀지만, **정작 문구를 쓰는 사람이 읽는 파일에는 없었다.**
+
+🔑 그래서 이렇게 못박았다 — *"새 문구를 정할 때 제목이 목록에 보일 거라고 가정하지 마라.
+사용자가 목록에서 읽는 것은 `body` 뿐이고, **본문 혼자서 무슨 일인지 말해야 한다**."*
+`계약 파기.` 는 트레이에서 본문과 함께 뜰 때 성립하는 제목이고, 그 분업을 모르면 다음 사람이
+제목에 정보를 싣고 본문을 비우는 문구를 만든다.
 
 ## 🔴 부수 개선 — `NotificationType` 의 길이 테스트가 **이제 성립한다**
 
@@ -388,16 +434,29 @@ spec 은 pm-lead 소관이라 보고했다.
 
 ## 미해결 이슈
 
-### 1. 🟡 **알림 문구 미기입 = 푸시 발송 꺼짐** (forfeit-mobile 회신 대기)
+### 1. ✅ **해소 — 알림 발송 ON** (2026-09-05)
 
-`NotificationMessages` 에 `CHALLENGE_FORFEITED` 문구를 **일부러 넣지 않았다.**
-레포 규약(`NotificationMessagesTest` KDoc)이 *"모바일 통지·회신이 선행해야 한다"* 로 못박고 있고,
-`OPPONENT_VERIFIED` 가 2026-08-14 에 밟은 절차다. 앱이 모르는 타입이 먼저 나가면
-트레이에서 **눌러도 아무 데도 안 가는 조용한 실패**가 된다.
+문구를 **일부러 비워 두고 있다가**, forfeit-mobile 이 배선 완료를 **숫자와 함께 회신한 뒤** 열었다.
+`OPPONENT_VERIFIED` 가 2026-08-14 에 밟은 절차와 같다 — 앱이 모르는 타입이 먼저 나가면
+트레이에서 **눌러도 아무 데도 안 가는 조용한 실패**가 되기 때문이다.
 
-- **회신 조건**: `PushEvent.ChallengeForfeited` + 딥링크 `Route.Challenge.Detail` 배선 완료
-- **회신 오면**: 문구 2줄 + `NotificationMessagesTest.inScope` 1줄 = **총 3줄**로 켜진다
-- ⚠️ **블로커가 아니다** — 기권 자체(판정·전적·응답)는 전부 정상이고 알림만 0건이다. 실기동 확인 완료
+**모바일 선행 조건 (회신받은 숫자)**: `PushEvent.ChallengeForfeited` + 딥링크
+`Route.Challenge.Detail` + 목록 비탭(`isTappableInList`) 배선 완료 —
+`:core:push` Android 28/28 · iOS 28/28, `:feature:notification` Android 43/43 · iOS 43/43, failures 0.
+
+**서버 변경 3줄**: `NotificationMessages.of` 의 `Message` 2줄 + `NotificationMessagesTest.inScope` 1줄.
+
+문구 (spec §6 초안, 🟡 사용자 미확정):
+
+| 자리 | 값 |
+|---|---|
+| 제목 | `계약 파기.` |
+| 본문 | `{actorNickname}님이 기권했습니다` |
+
+🔑 제목이 `계약 파기.` 인 것은 의도다 — 기존 4종이 `영혼의 맹세`/`계약 완료.`/`ㅠㅠ`/`증거 도착`
+으로 **계약 은유 + 짧은 단정** 톤이고, 기권은 그 은유에서 계약을 깨는 행위다.
+🔴 본문의 `님이` 도 의도다 — `CHALLENGE_REQUEST` 의 `"민수과"` 조사 결함(백로그 등재)을
+**새 문구에 복제하지 않는다.**
 
 ### 2. ✅ **해소 — 계약 `confirmed`** (2026-09-05)
 
