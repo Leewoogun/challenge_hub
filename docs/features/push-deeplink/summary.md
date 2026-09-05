@@ -2,7 +2,7 @@
 
 - **feature-id**: push-deeplink
 - **완료일**: 2026-08-08
-- **상태**: `implemented` — **`completed` 아니다.** 실기 검증(T-I1) 미실시 + **양 레포 미커밋**
+- **상태**: `implemented` — **`completed` 아니다.** 🔴 사유는 **실기 검증(T-I1) 미실시** 하나다 (~~양 레포 미커밋~~ ✅ **2026-09-05 해소** — 서버 3파일은 `1ae7dc8` 에 실렸고 server HEAD 는 `e76c64c` 보다 8커밋 앞이다)
 - **선행**: [push-fcm](../push-fcm/summary.md) (`completed`, 2026-08-07)
 - **범위**: Android. iOS 는 수신 자체가 미구현이라 자동 제외 — **단 `PushEvent`·`MainViewModel` 은 commonMain 이라 iOS 단위 테스트까지 초록이다**
 
@@ -102,7 +102,7 @@ val contract: Contract? = contractRepository.findByChallengeId(challengeId)   //
 
 ## 주요 변경
 
-**백엔드** (미커밋, 2파일 +134/-0)
+**백엔드** (✅ 2026-09-05 커밋 확인 — `1ae7dc8`, 당시 2파일 +134/-0)
 - `FcmNotificationSender` — `AndroidConfig` 추가. `tagFor(referenceId)` **순수 함수**로 분리
 - 🔴 **`referenceId` 가 null 이면 `android.notification` 블록 자체를 뺀다** — `"challenge-null"` 로
   뭉치면 **무관한 알림들이 한 덩어리가 되어 서로를 덮어써 예외도 로그도 없이 사라진다**
@@ -110,7 +110,7 @@ val contract: Contract? = contractRepository.findByChallengeId(challengeId)   //
   취급하므로(data-only 만 normal) **새 동작을 켜는 게 아니라 현재 실효 동작을 명시로 고정**하는 것
 - 계약 §3.1 신설 + §0.6.1 신설 + `change-log.md` 등재
 
-**모바일** (미커밋, 편집 7파일 +138/-23, 신규 8파일)
+**모바일** (✅ 2026-09-05 커밋 확인, 당시 편집 7파일 +138/-23, 신규 8파일)
 - **`:core:push`** — `PushEvent`(sealed, 3종) + `PushEventBus`(StateFlow) + `pushModule`
 - **`:feature:main`** — `MainViewModel` 인증 게이트(`combine(pending, isAuthenticatedArea)`), `toRoute()`
 - **`composeApp`** — `MainActivity` intent 파싱 + `onNewIntent` + `removeExtra`,
@@ -246,7 +246,7 @@ pm-lead 가 잔존을 지적해 2차 정정으로 `🟡 부분 해소` + 취소�
 ## 미해결 이슈
 
 - [x] ✅ **모바일 커밋됨** — `d25e394 feat: push noti 클릭 시 해당 화면으로 이동하는 기능 구현` + `b49f6d5`(README). working tree clean (2026-08-14 확인)
-- [ ] 🔴 **서버 3파일 미커밋** — `FcmNotificationSender.kt` / `FcmNotificationSenderTest.kt` / `NotificationMessages.kt`. HEAD 여전히 `e76c64c`. ⚠️ **기능 파손은 없다** — 앱이 읽는 `data.type`·`challengeId` 는 `push-fcm` 때 이미 배포됐고, 미커밋분은 `android` 블록 추가 + 주석뿐이다. **다만 트레이 중복 제거가 안 켜져 있고, 최상위 블로커(T-I1)의 임계 경로 위에 있다**
+- [x] ✅ **서버 3파일 커밋 완료** (2026-09-05 실측) — `FcmNotificationSender.kt` / `FcmNotificationSenderTest.kt` / `NotificationMessages.kt` 모두 `git ls-files` 에 있고 `1ae7dc8` 에 실렸다. HEAD 는 `e76c64c` 보다 **8커밋 앞**이다. 🔵 **다만 미푸시라 배포는 여전히 안 됐다** — 아래 당시 서술의 *트레이 중복 제거 미가동* 은 배포 기준으로는 유효하다. 당시 기록: ⚠️ **기능 파손은 없다** — 앱이 읽는 `data.type`·`challengeId` 는 `push-fcm` 때 이미 배포됐고, 미커밋분은 `android` 블록 추가 + 주석뿐이다. **다만 트레이 중복 제거가 안 켜져 있고, 최상위 블로커(T-I1)의 임계 경로 위에 있다**
 - [ ] 🔴 **PM 문서 커밋** — 코드보다 급하다. 코드는 테스트로 재구성되지만 **판단 근거(tag null 가드 이유, priority 근거, 계약 §3 세 번째 드리프트 정정)는 이 파일들에만 있다**
 - [ ] 🔴 **T-I1 실기 검증 미실시** — 위 절 전체. **수용 기준 중 실기로만 확인 가능한 항목이 남는다**
 - [ ] 🔴 **tag 중복 제거 미배포·미실증** — 서버 배포 후에만 확인 가능
