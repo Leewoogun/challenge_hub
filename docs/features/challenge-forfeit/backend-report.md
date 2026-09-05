@@ -363,6 +363,17 @@ spec T-B1 이 `ChallengeVerdict` KDoc 에 대해 *"낡은 문장이 된다 — �
 `active`/`history` 확장은 **넣지 않는 것으로 확정**(forfeit-mobile 회신 + pm-lead 판정).
 구현이 이미 그 상태였다(두 DTO 다 forfeit 참조 0건). 미결 0건으로 `confirmed`.
 
+🔑 **내가 세 번 물었던 질문이 결국 결정적 근거가 됐다.** *"`active`/`history` DTO 에
+`challenger.userId` 가 있느냐"* 를 반복해 물었는데, forfeit-mobile 실측 + pm-lead 재확인 결과
+**두 모바일 DTO 에 `userId` 가 하나도 없었다** — 전부 `my*`/`opponent*` 의 "내 시점" 좌표다.
+
+즉 `forfeitedBy`(userId = 역할 좌표)를 넣으면 **비교 대상이 응답 안에 없어 앱이 해석할 수 없다.**
+정확한 표현은 *"안 그린다"* 가 아니라 **"그릴 수 없다"** 이고, 이건 **디자인이 바뀌어도
+안 무너지는 근거**다(*"안 그린다"* 는 무너진다). 계약 §2 에 ⓑ 로 등재했다.
+
+⚠️ **뒤집을 때 `forfeitedBy` 를 그대로 추가하면 안 된다** — 두 응답의 좌표계에 맞는
+**내 시점 필드**(`forfeitedByMe: Boolean` 등)가 필요하다. 계약에 적어 뒀다.
+
 🔴 **개정 과정에서 내 근거 하나가 사실이 아님이 드러났다.** 705 를 고르며
 *"705 는 확인을 강제해 새로고침 계기를 준다"* 고 적었는데, forfeit-mobile 실측 + pm-lead
 재확인으로 **앱에 그 동작이 없다**는 것이 밝혀졌다 — `onError: (String) -> Unit` 시그니처가

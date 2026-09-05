@@ -184,22 +184,52 @@ challenger 만 부른다). 잠금이 없으면 READ COMMITTED 에서 동시에 �
 pm-lead 판정 + forfeit-mobile 안 채택. 판단 기준이 *"그 화면이 기권을 구분해 그리는가"* 였고
 **답이 "안 그린다"** 였다.
 
-근거:
+근거가 **두 다리**다. ⓐ 가 무너져도 ⓑ 는 남는다.
+
+### ⓐ 앱이 그 두 화면에서 기권을 **안 그린다**
+
 - Lovable 정본에 기권 UI 가 **0건**(pm 실측). 홈 카드·보관함까지 그리면 **디자인 근거 없는
   이탈분이 1건에서 3화면으로** 늘어난다
 - 홈·보관함이 말하는 승/패는 기권이든 아니든 **이미 정확하다** — *전적에서 기권을 구분하지 않는다*
   는 사용자 결정(spec §1 제외)과 같은 방향이다
 - *"왜 이렇게 끝났나"* 는 **상세가 답할 자리**다
 
-실측: `ActiveChallengeResponse.kt` / `ChallengeHistoryResponse.kt` 둘 다 forfeit 참조 **0건** —
-구현이 이미 이 결정대로다.
+⚠️ **이 다리는 디자인이 바뀌면 무너진다.**
 
-🔴 **뒤집히면 서버 필드 추가가 따라온다.** 디자이너가 홈 카드 기권 표시를 요구하면 두 응답에
-`forfeitedBy` 를 넣는 서버 작업이 돌아온다. **결정이지 누락이 아니다** — 나중에 읽는 사람이
-그 둘을 구분할 수 있어야 해서 명시한다.
+### ⓑ 🔴 넣어도 **앱이 해석할 수 없다** — 좌표계가 다르다
 
-⚠️ 초안이 남겼던 *"`active`/`history` DTO 에 `challenger.userId` 가 있는지 확인하라"* 는 **소멸했다.**
-비교할 일 자체가 없다.
+**이쪽은 디자인이 바뀌어도 안 무너진다.** forfeit-mobile 실측 + pm-lead 재확인 —
+두 모바일 DTO 는 **`userId` 를 하나도 싣지 않는다**:
+
+```
+ActiveChallengeDto  : challengeId · myMission · opponentNickname · opponentMission ·
+                      deadline · myVerificationStatus · opponentVerificationStatus ·
+                      bet · status · myResult
+ChallengeHistoryDto : challengeId · challengeDate · opponentNickname · myMission ·
+                      opponentMission · bet · myResult
+```
+
+**전부 "내 시점" 좌표다** — `my*` / `opponent*` 로 **이미 뒤집혀서** 간다. 반면 `forfeitedBy` 는
+**userId**(역할 좌표)다. 넣으면 **비교 대상이 응답 안에 없는 외래 좌표 필드 하나**가 홀로 앉고,
+앱은 그 값이 나인지 상대인지 **판별할 수단이 없다.**
+
+🔑 그래서 정확한 표현은 *"안 그린다"* 가 아니라 **"그릴 수 없다"** 다.
+
+⚠️ 초안이 남겼던 *"`active`/`history` DTO 에 `challenger.userId` 가 있는지 확인하라"* 는
+**확인이 끝났고 답이 «없다»** 였다. 상세(`GET /challenges/{id}`)는 `challenger`/`opponent` 를
+**역할 그대로** 주므로 비교가 성립한다 — `forfeitedBy` 가 상세에서만 뜻을 갖는 이유가 이것이다.
+
+### 🔴 뒤집으려면 — **필드 1개로는 부족하다**
+
+디자이너가 홈 카드 기권 표시를 요구하면 서버 작업이 돌아오는데, **`forfeitedBy` 를 그대로
+추가하면 안 된다**(위 ⓑ). 두 응답의 좌표계에 맞는 **내 시점 필드**가 필요하다 —
+`forfeitedByMe: Boolean` 또는 `myResult` 를 확장하는 형태.
+
+**결정이지 누락이 아니다.** 다음 사람이 필드 하나만 넣어 보고 *"왜 앱이 못 쓰지"* 를 찾느라
+헤매지 않도록 여기 적는다.
+
+실측: `ActiveChallengeResponse.kt` / `ChallengeHistoryResponse.kt`(서버) 둘 다 forfeit 참조
+**0건** — 구현이 이미 이 결정대로다.
 
 ---
 
@@ -278,6 +308,7 @@ dispatcher 가 건너뛴다. 레포 규약(`NotificationMessagesTest` KDoc)이
 | 2026-09-05 | forfeit-mobile | 개정 4건 **전부 수용, 이견 0**. ① `active`/`history` **둘 다 넣지 마라**(앱이 그 두 화면에서 기권을 안 그린다) ② 🔴 **705 근거 1줄이 실측과 다르다** — 앱은 `code` 를 소비하지 않는다(`onError: (String) -> Unit`, 206곳). **결론은 유지하되 근거를 바꿔라** ③ `myResult` 수용(앱은 안 읽지만 계약에 있는 게 맞다) ④ 알림 배선 3줄 설계 완료, 착수는 `confirmed` 이후 |
 | 2026-09-05 | pm-lead | **판정 3건.** ① `active`/`history` **미포함 확정**(mobile 안 채택) ② `referencePending` 은 값과 **근거를 계약에 명시할 것** ③ 🔴 705 를 700 으로 내리지 마라 — 앱 미구현에 서버 표기를 맞추면 **버그가 계약에 박제된다.** 앱 결함은 백로그 등재(`9c3bf19`) |
 | 2026-09-05 | backend-dev | **`confirmed` 로 확정.** 미결 0건. 반영: `active`/`history` 미포함(§2) · `referencePending = null` + 근거(§3) · 🔴 **705 근거에서 *"확인을 강제해 새로고침 계기를 준다"* 삭제**(실재하지 않는 앱 동작이었다 — §1) |
+| 2026-09-05 | forfeit-mobile · pm-lead | 🔴 **§2 제외 근거에 두 번째 다리 ⓑ 추가.** 모바일 두 DTO 에 `userId` **0건** 실측 — 전부 "내 시점" 좌표라 userId 형태 필드는 **비교 대상이 응답에 없어 해석 불가**. ⓐ(*"안 그린다"*)는 디자인이 바뀌면 무너지지만 **ⓑ 는 안 무너진다.** 뒤집을 때 `forfeitedBy` 가 아니라 **내 시점 필드**가 필요하다는 것도 함께 명시 |
 
 ### 개정 1 — 🔴 에러 코드를 전부 700 → **705 3건 + 700 1건** (§1)
 
