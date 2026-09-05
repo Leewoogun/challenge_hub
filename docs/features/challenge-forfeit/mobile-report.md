@@ -118,7 +118,27 @@ Kotlin/Native 가 **백틱 테스트 이름의 `,` · `(` · `)`** 를 심볼명
 
 🔑 **그래서 이 두 모듈의 iOS 테스트는 여태 한 번도 돈 적이 없다.** Android 만 돌리면 안 드러나고,
 실패해도 아무도 보지 않는다. **고치지 않았다** — 기존 테스트 이름 다수를 바꾸는 일이라 이 feature
-범위 밖이다. §미해결에 백로그 후보로 등재.
+범위 밖이다.
+
+🔵 **새 백로그 항목이 아니다 — 이미 등재돼 있다.** `docs/backlog.md` 27행(🔴, verification-photo-replace
+발견분) · 79행(🟢, 3개 모듈 판) · 194행(분류별 보기). **중복 등재하지 않는다.**
+
+✅ **다만 이번 측정이 기존 항목의 숫자를 독립 확인했다.** 백로그 79행이 2026-09-01 갱신에서
+남은 위반을 *"`:remote:datasource` **14** · `:data:repositoryImpl` **8**"* 로 적어 뒀는데,
+이번에 컴파일러가 뱉은 실패 지점을 세면 **정확히 같다**:
+
+| 모듈 | 파일별 실패 | 합 | 백로그 79행 |
+|---|---|---|---|
+| `:remote:datasource` | `ChallengeRemoteDataSourceImplTest` 8 + `LoginRemoteDataSourceImplTest` 6 | **14** | 14 ✅ |
+| `:data:repositoryImpl` | `UserInfoRepositoryImplTest` 5 + `FcmTokenRepositoryImplTest` 3 | **8** | 8 ✅ |
+
+👉 **백로그 숫자가 오늘도 유효하다**(그 사이 증가·감소 없음). 그리고 기존 항목의 증거가
+*"`build/test-results/` 에 iOS 디렉터리 자체가 없다"* 는 **간접 증거**였던 것에 비해, 이번에는
+**컴파일러 에러 원문과 실패 태스크명**을 직접 떴다 — 위 블록이 그 증거다.
+
+✅ **백로그 79행의 경고를 지켰다** — *"⚠️ 신규 테스트 작성 시 백틱 이름에 `,`/`(`/`)` 금지 —
+child claude 가 기존 파일 관행을 답습해 재발한 전례가 있다."* 이번 `forfeitChallenge` 2건은
+그 패턴을 피했고(실패 목록에 없다), **위반 수를 늘리지 않았다.**
 
 ## Working tree 상태
 
@@ -148,8 +168,9 @@ Lovable 정본에 기권 UI 가 0건이라 아래는 전부 **내가 기존 토�
    (`active`/`history` 응답에 필드 추가). ⚠️ 그리고 `forfeitedBy` 를 **그대로 추가하면 안 된다** —
    두 DTO 는 `my*`/`opponent*` **내 시점 좌표**만 쓰고 `userId` 를 하나도 싣지 않아(실측 0건)
    userId 형태는 해석이 불가능하다. `forfeitedByMe: Boolean` 같은 시점 필드가 필요하다.
-2. 🔴 **`:remote:datasource` · `:data:repositoryImpl` 의 iOS 테스트가 컴파일되지 않는다**(선존재).
-   백틱 이름의 쉼표·괄호. **이 두 모듈 iOS 테스트는 실행된 적이 없다.** 백로그 후보.
+2. 🔵 **`:remote:datasource` · `:data:repositoryImpl` 의 iOS 테스트 미컴파일**(선존재) —
+   **이미 백로그에 있다**(`backlog.md` 27 · 79 · 194행). **중복 등재하지 않는다.**
+   이번 측정이 기존 항목의 위반 수(14 · 8)를 **컴파일러 원문으로 독립 확인**했다 — 위 §테스트 결과 참조.
 3. 🔴 **앱이 `ResponseCode` 의 표시 위계를 구현하지 않는다** — `onError: (String) -> Unit` 이
    레포 전체 **206곳 단일 종**이라 `code` 를 나를 통로가 없다. 서버가 기권 실패에 **705 를 3건**
    보내지만 **앱은 전부 스낵바로 그린다. 정상이고 결함이 아니다** — 백로그 등재(`9c3bf19`).
@@ -157,10 +178,56 @@ Lovable 정본에 기권 UI 가 0건이라 아래는 전부 **내가 기존 토�
 4. 🟡 **`wireResponse` · `pendingWireResponse` 픽스처가 낡았다**(2026-08-03 캡처, `result` 키 이전 서버).
    라벨을 달았으나 **재캡처는 안 했다** — `IN_PROGRESS`·`PENDING` 두 상태로 서버 왕복 2회가 필요해
    범위 밖. 🔵 삭제하지 않은 이유: **키 부재 내성**의 증명이라 전역 `NON_NULL` 이 켜지는 날의 안전망이다.
-5. 🟡 **spec §3 수용 기준의 `referencePending = false` 가 계약(`null`)과 어긋난다** — pm-lead 소관.
-   계약 §3 은 정정 완료.
-6. 🟡 **알림 발송은 아직 꺼져 있다** — backend 가 `NotificationMessages` 문구를 넣으면 켜진다.
-   배선 완료를 회신했다(`OPPONENT_VERIFIED` 선례 절차). 기권 자체는 정상 동작한다.
+5. ✅ **해소** — spec §3 수용 기준의 `referencePending = false` 는 pm-lead 가 정정했다(`be81122`).
+   🔑 **값을 `null` 로 바꾼 게 아니라 기준 자체를 바꿨다** — *"`isTappableInList` 가 타입에서 곧바로
+   `false` 를 내는 것으로 검증하고, `referencePending` 이 무엇이든 결과가 같다는 것까지 단언"*.
+   값을 단언하는 테스트였으면 서버가 값을 바꾸는 날 깨지는데 **정작 보장해야 할 것(타입 단계 비탭)은
+   그대로 참이라**, 보장이 아니라 무관한 값을 감시하게 된다. 계약 §3 도 같은 방식으로 정정됐다.
+   ✅ **이 기준을 만족하는 테스트는 이미 들어가 있다** — `기권 알림은 referencePending 이 무엇이든
+   목록에서 탭할 수 없다` 가 `listOf(true, false, null)` 을 전부 돌며 `route == null` ·
+   `isTappable == false` 를 단언한다(실패 시 어느 값인지 메시지로 남긴다).
+6. ✅ **해소** — 알림 발송 **켜졌다**. 내 "배선 완료" 회신 후 backend 가 문구를 넣었고
+   실기동으로 row 생성까지 확인됐다(`OPPONENT_VERIFIED` 선례 절차 그대로).
+   실제 저장·발송 값: `type=CHALLENGE_FORFEITED` · `title=계약 파기.` · `body=테스터2님이 기권했습니다` ·
+   `reference_id=challengeId` · 수신자 = **이긴 쪽**.
+   🔴 목록 응답의 `referencePending` 은 서버가 실제로 **`null`** 을 보낸다(계약 §3 확정값과 일치).
+   앱은 타입 단계에서 닫으므로 이 값에 의존하지 않는다 — 세 값 전부로 고정해 둔 테스트가 그 보장이다.
+7. 🟡 **알림 문구 4종은 사용자 미확정 초안이다**(`CHALLENGE_ACCEPTED`·`OPPONENT_VERIFIED` 도 같은 상태).
+   ✅ **앱 테스트에 문구 문자열을 박지 않았다** — 전 레포 grep 결과 `기권했습니다` 가 나오는 곳은
+   `NotificationPreviewFixtures.kt:112`(프리뷰 표시용) **1곳뿐**이고 단언은 0건이다.
+   타입·존재만 고정하므로 문구가 바뀌어도 테스트가 깨지지 않는다.
+
+## 🔴 이 feature 에서 내가 틀렸던 것 — 기록
+
+셋 다 **파일을 읽은 쪽이 메시지를 읽은 쪽을 이겼다.** 규율이 실제로 작동한 사례라 남긴다.
+
+### ① 실측 범위를 잘못 잡았다 — "딱 한 곳" 이 아니라 다섯 곳이었다
+
+child 지시서에 *"`ChallengeDetail` 에 필드를 추가하면 깨지는 곳은 딱 한 곳(`OathViewModelTest`)"* 이라고
+적었다. **`ChallengeDetail(...)` 조립부만 셌기 때문**이다. 그런데 같은 변경에 `ChallengeRepository`
+인터페이스 확장이 함께 있었고, **abstract 메서드가 늘면 구현체가 전부 깨진다** — `FakeChallengeRepository`
+**5개**(home · mypage · oath · create · detail). child 가 스스로 발견해 4개를 메우고 보고했다.
+
+🔑 **교훈은 "더 세라" 가 아니다.** 변경이 **두 종류**(데이터 클래스 필드 / 인터페이스 메서드)였는데
+**한 종류의 파급만 셌다.** 영향 범위는 변경 종류별로 따로 세어야 한다.
+
+### ② `referencePending = false` 지시가 틀렸다
+
+child 지시서에 프리뷰 픽스처 값을 `false` 로 적었다. 계약 §3 이 그 값을 **명시적으로 기각**하고
+`null` 로 확정한 상태였다. child 가 계약 본문을 근거로 이견을 냈고 **child 가 맞았다.**
+
+그 이견이 **`confirmed` 계약 §3 내부의 모순**(산문은 `false`, 5줄 뒤 소절은 `null` 확정)을 드러냈고,
+backend-dev 가 정정했다 — 🔑 **값이 아니라 근거를 교체**했다(*"`referencePending` 값은 이 판단의
+근거가 아니다"*). spec §3 수용 기준도 같은 이유로 정정됐다(`be81122`).
+
+### ③ `ChallengeOutcome` KDoc 초안 문장에 관점 한정이 빠졌다
+
+*"내가 기권하고 상대도 미인증이면 결과는 `OPPONENT_WIN`"* 을 그대로 넘겼다. `ChallengeResult` 는
+**역할 기준**이라 내가 opponent 면 같은 상황이 `CHALLENGER_WIN` 이다. child 가 *"내가 challenger
+인데"* 한정을 넣어 잡았다. 🔑 하필 **역산이 틀린 답을 낸다고 경고하는 문장**에서 역할을 안 따진
+것이라, 그대로 갔으면 그 KDoc 이 스스로를 반증했을 것이다.
+
+⚠️ backend 의 실캡처가 이 함정을 실증한다 — **opponent(2) 가 기권했더니 `CHALLENGER_WIN`** 이다.
 
 ## 🔴 기권이 깨뜨린 "낡은 근거" — 스윕 결과
 
