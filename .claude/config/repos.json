@@ -38,8 +38,21 @@
       "server_dto_pattern": "data class XxxResponse(val data: XxxData) : BaseResponse()",
       "mobile_handler": ":remote:datasource의 ApiResultCall이 body.code == 200만 Success로 간주, 나머지는 ApiResult.Failure.CustomError(code, message)"
     },
-    "challenge_states": ["PENDING", "ACCEPTED", "REJECTED", "CONTRACT_SIGNING", "IN_PROGRESS", "COMPLETED", "EXPIRED"],
-    "challenge_results": ["CHALLENGER_WIN", "OPPONENT_WIN", "DRAW", "BOTH_LOSE"]
+    "challenge_states": [
+      "PENDING",
+      "ACCEPTED",
+      "REJECTED",
+      "CONTRACT_SIGNING",
+      "IN_PROGRESS",
+      "COMPLETED",
+      "EXPIRED"
+    ],
+    "challenge_results": [
+      "CHALLENGER_WIN",
+      "OPPONENT_WIN",
+      "DRAW",
+      "BOTH_LOSE"
+    ]
   },
   "pm": {
     "path": "/Users/hwamulman/woogunProject/challenge/challenge-pm/challenge_hub",
@@ -53,7 +66,10 @@
     "tech": {
       "kotlin": "2.2.20",
       "compose_multiplatform": "1.10.3",
-      "targets": ["android", "ios"],
+      "targets": [
+        "android",
+        "ios"
+      ],
       "di": "Koin (KSP annotations: @KoinViewModel, @Single, @Module, @ComponentScan)",
       "http": "Ktor 3.3.1 + Ktorfit 2.7.2 (KSP generated)",
       "serialization": "kotlinx.serialization (JSON)",
@@ -61,25 +77,68 @@
       "test": "kotlin.test (현재 스켈레톤 수준)",
       "build": "Gradle Kotlin DSL + 커스텀 build-logic 플러그인"
     },
-    "_modules_comment": "2026-08-06 settings.gradle.kts 실측 갱신. soul-oath 에서 :feature:challenge:oath / :detail 신설. 사용자 커밋 0389e99 'refactor: 프로젝트 아키텍처에 DataSource 추가' 로 :remote:datasource 모듈 신설 — RepositoryImpl 이 얇은 위임체가 되고 flow{} + suspendOnSuccess/suspendOnFailureWithErrorHandling 패턴이 이 모듈로 이관됐다(사본 9곳, backlog flowUtil 항목 참조). ⚠️ :core:invite 는 존재하지 않는다 — friends 2차 계획 당시의 모듈명이었으나 실제로는 승격되지 않고 카톡 초대 코드가 :feature:friends:list 안(kakao/KakaoInviter.kt, iosMain 의 IosKakaoInviter·KakaoInviteBridge, di/PlatformInviteModule)에 들어갔다. component_placement_rule 및 커밋 97bf4e7 'fix: feature 모듈 컨벤션에 맞게 정리' 와 정합한다. 2026-08-06 에 이 목록에 :core:invite 를 잘못 추가했다가 mobile-dev 지적으로 정정함. 2026-09-01 실측 갱신 (notification-list 중 design-bridge 지적): :core:push · :core:permission 2개가 누락돼 있었다(push-fcm / push-deeplink 때 신설됐는데 이 목록을 갱신하지 않았다). ⚠️ 이 목록은 조용히 낡는다 — 틀려도 아무것도 실패하지 않고, 에이전트가 '없는 모듈'로 오인해 코드를 엉뚱한 곳에 두거나 존재하는 모듈을 재발명할 때에야 드러난다. 이번이 두 번째 사고다(1회: 없는 모듈 추가, 2회: 있는 모듈 누락). 모듈 신설을 동반한 feature 를 닫을 때는 settings.gradle.kts 와 대조하라: grep -oE '\":[a-zA-Z0-9:_-]+\"' settings.gradle.kts | tr -d '\"' | sort",
+    "_modules_comment": "2026-08-06 settings.gradle.kts 실측 갱신. soul-oath 에서 :feature:challenge:oath / :detail 신설. 사용자 커밋 0389e99 'refactor: 프로젝트 아키텍처에 DataSource 추가' 로 :remote:datasource 모듈 신설 — RepositoryImpl 이 얇은 위임체가 되고 flow{} + suspendOnSuccess/suspendOnFailureWithErrorHandling 패턴이 이 모듈로 이관됐다(사본 9곳, backlog flowUtil 항목 참조). ⚠️ :core:invite 는 존재하지 않는다 — friends 2차 계획 당시의 모듈명이었으나 실제로는 승격되지 않고 카톡 초대 코드가 :feature:friends:list 안(kakao/KakaoInviter.kt, iosMain 의 IosKakaoInviter·KakaoInviteBridge, di/PlatformInviteModule)에 들어갔다. component_placement_rule 및 커밋 97bf4e7 'fix: feature 모듈 컨벤션에 맞게 정리' 와 정합한다. 2026-08-06 에 이 목록에 :core:invite 를 잘못 추가했다가 mobile-dev 지적으로 정정함. 2026-09-01 실측 갱신 (notification-list 중 design-bridge 지적): :core:push · :core:permission 2개가 누락돼 있었다(push-fcm / push-deeplink 때 신설됐는데 이 목록을 갱신하지 않았다). ⚠️ 이 목록은 조용히 낡는다 — 틀려도 아무것도 실패하지 않고, 에이전트가 '없는 모듈'로 오인해 코드를 엉뚱한 곳에 두거나 존재하는 모듈을 재발명할 때에야 드러난다. 이번이 두 번째 사고다(1회: 없는 모듈 추가, 2회: 있는 모듈 누락). 모듈 신설을 동반한 feature 를 닫을 때는 settings.gradle.kts 와 대조하라: grep -oE '\":[a-zA-Z0-9:_-]+\"' settings.gradle.kts | tr -d '\"' | sort 🔴 2026-09-05 세 번째 사고 — :feature:notification 누락(forfeit-mobile 실측 적발: settings 33 vs 여기 32). 🔑 이번 건의 교훈은 앞의 둘과 다르다: 바로 위 '2026-09-01 실측 갱신' 이 **notification-list 를 진행하면서** :core:push·:core:permission 을 채웠는데, **정작 그 feature 가 신설한 :feature:notification 을 빠뜨렸다.** 즉 '모듈 신설을 동반한 feature 를 닫을 때 대조하라' 는 아래 규칙은 이미 있었고, 있는 채로 실패했다. ⚠️ 그러므로 이 목록을 신뢰하지 마라 — **정본은 settings.gradle.kts 이고 여기는 편의 사본이다.** 모듈 존재 여부가 판단에 걸리는 순간에는 목록을 읽지 말고 아래 명령을 돌려라.",
     "modules": [
       ":composeApp",
-      ":core:designsystem", ":core:ui", ":core:utils", ":core:navigation",
-      ":domain:model", ":domain:repository", ":domain:usecase",
-      ":data:datasource", ":data:repositoryImpl",
-      ":local:datastore", ":local:database",
-      ":remote:network", ":remote:api", ":remote:model", ":remote:mapper", ":remote:datasource",
-      ":feature:main", ":feature:home", ":feature:login", ":feature:splash",
-      ":feature:friends:list", ":feature:friends:search",
-      ":feature:challenge:create", ":feature:challenge:oath", ":feature:challenge:detail", ":feature:challenge:verify",
-      ":core:camera", ":core:push", ":core:permission",
-      ":feature:ranking", ":feature:mypage"
+      ":core:designsystem",
+      ":core:ui",
+      ":core:utils",
+      ":core:navigation",
+      ":domain:model",
+      ":domain:repository",
+      ":domain:usecase",
+      ":data:datasource",
+      ":data:repositoryImpl",
+      ":local:datastore",
+      ":local:database",
+      ":remote:network",
+      ":remote:api",
+      ":remote:model",
+      ":remote:mapper",
+      ":remote:datasource",
+      ":feature:main",
+      ":feature:home",
+      ":feature:login",
+      ":feature:splash",
+      ":feature:friends:list",
+      ":feature:friends:search",
+      ":feature:challenge:create",
+      ":feature:challenge:oath",
+      ":feature:challenge:detail",
+      ":feature:challenge:verify",
+      ":core:camera",
+      ":core:push",
+      ":core:permission",
+      ":feature:ranking",
+      ":feature:mypage",
+      ":feature:notification"
     ],
     "component_placement_rule": "feature 전용 컴포넌트는 해당 feature 모듈의 component/ 하위에 둔다. :core:designsystem 은 도메인 무관 프리미티브(Button/Divider/Label/Scaffold/Spacer 등) + theme 만 보유. 커밋 72d9d9c 로 사용자가 확립한 규칙이며, :core:designsystem 이 :core:utils 만 의존해 :domain:model 을 못 받는 제약과도 맞물린다.",
     "own_harness": {
       "claude_dir": "/Users/hwamulman/woogunProject/challenge/challenge-app/.claude",
-      "skills": ["full-feature", "feature", "domain", "data-remote", "data-local", "viewmodel", "navigation", "figma-ui", "bugfix", "modify-feature", "test-usecase", "test-viewmodel", "design-system"],
-      "agents": ["qa-integration", "review-viewmodel", "figma-analyzer", "api-analyzer", "data-remote-builder", "data-local-builder"],
+      "skills": [
+        "full-feature",
+        "feature",
+        "domain",
+        "data-remote",
+        "data-local",
+        "viewmodel",
+        "navigation",
+        "figma-ui",
+        "bugfix",
+        "modify-feature",
+        "test-usecase",
+        "test-viewmodel",
+        "design-system"
+      ],
+      "agents": [
+        "qa-integration",
+        "review-viewmodel",
+        "figma-analyzer",
+        "api-analyzer",
+        "data-remote-builder",
+        "data-local-builder"
+      ],
       "note": "mobile-dev 에이전트는 직접 파일을 작성하기 전에 반드시 이 레포의 .claude/skills/를 읽고 해당 절차를 따른다. CLAUDE.md의 Skill 매핑 테이블이 1차 참조."
     },
     "blockers": [
@@ -111,7 +170,19 @@
       "build": "Gradle Kotlin DSL + build-logic 컨벤션 플러그인"
     },
     "_modules_comment": "2026-08-25 실측 갱신 (challenge-result 중 backend-dev 지적). 이전 기재(:api/:domain/:infra 단일)는 낡은 정보였다. :batch 는 challenge-result 에서 첫 코드(@Scheduled 판정 배치) 들어감.",
-    "modules": [":app", ":controller", ":service", ":domain:model", ":domain:repository", ":infra:entity", ":infra:jpa", ":infra:repositoryimpl", ":infra:external", ":core", ":batch"],
+    "modules": [
+      ":app",
+      ":controller",
+      ":service",
+      ":domain:model",
+      ":domain:repository",
+      ":infra:entity",
+      ":infra:jpa",
+      ":infra:repositoryimpl",
+      ":infra:external",
+      ":core",
+      ":batch"
+    ],
     "kotlin_plugins": {
       "kotlin-spring": "@Service/@Configuration 자동 open 처리",
       "kotlin-jpa": "@Entity/@MappedSuperclass/@Embeddable에 no-arg 생성자 자동 생성"
