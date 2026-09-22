@@ -539,3 +539,96 @@ design 은 이 항목을 **blocking** 으로 올리며 *"절대 성공하지 않
 
 *"신규 필드 0"* 이 싸 보이지만 **비용이 계약 표면이 아니라 관측 가능성에서 나간다.**
 게다가 두 안 모두 이 change-log 등재가 필요하므로 비용 차이가 크지도 않았다.
+
+---
+
+# 2026-09-22 — `aiReason` 필드 추가 + `FAILED` 의미 확장 (ai-verification 발원)
+
+- **변경 주체**: backend-dev (`aiverify-backend`) · 협의 `aiverify-mobile` · 근거 [ADR-0013](../../decisions/0013-ai-verification-provider.md)
+- **대상**: `GET /api/v1/challenges/{id}/verifications` — party 객체
+- **성격**: 🟡 **필드는 additive, 그런데 `status` 의 의미가 넓어졌다.** 아래 §의미 변화 참조
+
+## 무엇이
+
+party 객체(`challenger` / `opponent`)에 **`aiReason: String?`** 추가. nullable.
+
+🔴 **wire 게이트가 이 필드의 계약이다** (계약 §4.1):
+
+```
+wire 의 aiReason 이 non-null  ⟺  그 인증이 AI 판별로 미인증 처리됐다
+```
+
+`ai_reason` **컬럼**은 rubric 튜닝 근거라 `PASS`·`UNCERTAIN`·`UNVERIFIABLE`·`ERROR` 사유까지
+전건 저장되지만 **wire 는 미인증 확정 건만 싣는다.** 컬럼을 그대로 흘리면 *"이겼는데 인정되지
+않았어요"* · *"AI 검증이 비활성 상태입니다"* · 🔴 **네트워크 예외 메시지**가 사용자 화면에 나간다.
+
+⚠️ **이 게이트가 실제로 한 번 빠져 있었다** — 코드에 없는 채로 서버 KDoc 이 *"통과한 건의
+`aiReason` 은 wire 에 내려가지 않는다(계약)"* 고 단정하고 있었고 컴파일도 테스트도 초록이라
+**조용했다.** `aiverify-mobile` 이 적발했고 pm-lead 가 독립 확인했다. 🔵 **이 프로젝트에서
+*"문서가 코드보다 앞서 있는데 아무도 몰랐다"* 의 7번째이고, 앞의 6건과 달리 사용자 화면에
+직접 새는 건이었다.**
+
+## 🔴 의미 변화 — 필드 추가보다 이쪽이 크다
+
+`status = FAILED` 가 **하나에서 둘로** 넓어졌다:
+
+| | 전이 주체 | 대상 | `photoUrl` |
+|---|---|---|---|
+| 마감까지 미제출 (기존) | `ChallengeJudgementService.judge()` | `PENDING` → `FAILED` | **null** |
+| **AI 반려 (신규)** | AI 검증 단계 | `VERIFIED` → `FAILED` | 🔴 **non-null** |
+
+🔴 **그래서 `FAILED` 인데 사진이 있는 조합이 처음 생겼다.** 이 계약이 `confirmed` 된
+2026-08-14 부터 2026-09-22 까지 `FAILED` 는 100% 미제출이었고 `photoUrl` 이 항상 null 이었다.
+**그 등식을 코드에 굳힌 곳이 서버 3곳 · 앱 3곳에서 발견됐다** (양쪽이 각자 계층에서 독립 적발).
+
+**사진 표시 판정을 `status` 에서 `photoUrl`(서버는 사진 key) 유무로 옮기는 것이 이 개정의 실질이다.**
+반려된 사진을 숨기면 사용자는 *"인정되지 않았습니다"* 만 보고 **무엇이 인정되지 않았는지 못 본다**
+(기획 §2.4 증거 보존).
+
+## 함께 정정한 낡은 문장 4건
+
+`status` 로 사진 유무를 역산하던 서술이 전부 거짓이 됐다:
+
+| # | 위치 | 낡은 문장 |
+|---|---|---|
+| 1 | §4 nullable 전수답변 | *"`photoUrl` 은 `status != VERIFIED` 면 null 인가 → ✅ 그렇다"* |
+| 2 | 〃 | *"`verifiedAt` — `VERIFIED` 가 아니면 null"* (반려 건엔 남는다) |
+| 3 | §4 필드 표 | *"`photoUrl` — `VERIFIED` 가 아니면 null"* |
+| 4 | §4 말미 | *"`photoUrl` 은 `status` 와 `userId` 만으로 결정되는 값이다 — 앱이 조립해도 같다"* |
+
+🔴 **4번이 가장 위험했다** — 앱이 경로를 조립해도 같은 결과가 나온다는 보장이 **사라졌는데**
+(결정 요인이 앱이 볼 수 없는 사진 key 다), 그 문장은 조립을 허용하는 것처럼 읽혔다.
+
+## 서버 구현
+
+- **마이그레이션 `V13__verification_ai_verdict.sql`** — `verifications` 에 판정 로그 4컬럼
+  (`ai_verdict` / `ai_confidence` / `ai_reason` / `ai_checked_at`, 전부 nullable)
+- 게이트 판정은 `Verification.rejectedByAi()` **한 곳**이고 `MissionVerdict.rejectsVerification()`
+  에 **위임**한다 — 조건식을 wire 계층에 새로 적으면 판정 규칙의 사본이 된다(ADR-0013 §근거 2)
+- 🔴 **판정 규칙(`ChallengeVerdict`)은 한 줄도 바뀌지 않았다.** AI 결과를 `status` 라는 **기존
+  입력 하나**로 환원했기 때문이다. 단 **순서가 전제다** — 검증이 `judge()` 보다 먼저 돌아야 하고,
+  뒤집히면 반려가 판정에 반영되지 않고 **그 사실이 조용하다.** 테스트로 고정했다(순서를 일부러
+  뒤집어 그 테스트만 빨개지는 것까지 확인)
+
+## 앱 영향
+
+- `aiReason` 을 **non-null 일 때만** 표시. `null` 에서 어떤 결론도 파생하지 않는다
+- 🔴 사진 렌더 조건을 `status` 에서 `photoUrl` 유무로 옮겨야 한다 (앱 3곳 — mobile-dev T-M2)
+- `FAILED` 뱃지 라벨 *"실패"* 는 미제출·반려 **둘 다에 참**이라 그대로 둔다
+
+---
+
+# 2026-09-22 — `photoDeleted` 누락 보정 (문서 전용, shape 무변경)
+
+- **변경 주체**: backend-dev (`aiverify-backend`) · 적발 `aiverify-mobile` + pm-lead
+- **성격**: 🟢 **문서 보정.** 코드 변경 0건, shape 변경 0건
+
+🔴 **이번 feature 가 만든 변경이 아니다.** `photoDeleted` 는 **2026-08-26 부터 실재**했고
+(mypage 발원, 위 change-log 항목에 등재됨) 서버 `VerificationDtos.kt` 에 있고 앱이 매핑·테스트까지
+하는데, **§4 응답 예시와 필드 표에는 0건**이었다 — mypage 가 필드를 추가하고 그쪽 예시를 안 고쳤다.
+
+**§4 예시 2곳과 필드 표에 추가했다.**
+
+🔑 **`aiReason` 과 같은 커밋에 있지만 별도 항목으로 등재하는 이유**: 섞으면 *"ai-verification 이
+`photoDeleted` 를 도입했다"* 로 읽히고, 그러면 이 필드의 진짜 근거(mypage 회원탈퇴 — 삭제된 사진과
+데이터 이상을 가르는 신호)가 사라진다. 🔵 **누락 보정과 신규 변경은 이력에서 갈라 둔다.**

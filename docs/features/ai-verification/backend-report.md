@@ -4,6 +4,9 @@
 - **범위**: spec T-B1 / T-B2 / T-B4 / T-B5 = plan Task 1·2·3·4·6·7
 - **결정 근거**: [ADR-0013](../../decisions/0013-ai-verification-provider.md) (accepted 2026-09-20)
 - **레포**: `challenge-server` — 🔴 **미커밋** (커밋은 사용자 판단)
+- **계약**: ✅ **`confirmed`** (2026-09-22) — 정본은
+  [challenge-verification/api-contract.md](../challenge-verification/api-contract.md) **§4·§4.1**,
+  change-log **2건** 등재 (`aiReason` / `photoDeleted` 누락 보정 — 섞지 않았다)
 
 > 🔴 **plan Task 5·8 은 실행하지 않았다** — 이미 개통된 기능이다
 > (verification-photo-replace, 2026-09-02). 폐기 표시가 달려 있고 그대로 따랐다.
@@ -299,48 +302,136 @@ Started ChallengeServerApplicationKt in 5.114 seconds
 
 ---
 
-## 계약 상태 — 🔴 아직 `draft` 다
+## 계약 상태 — ✅ `confirmed` (2026-09-22)
 
-[api-contract.md](./api-contract.md) 는 **내가 아직 닫지 않았다.** mobile-dev(`aiverify-mobile`)
-와 협의를 **구현보다 먼저** 열었고(challenge-forfeit 의 42분 병목 재발 방지), 2회 발신했다:
+지시대로 **구현보다 협의를 먼저** 열었다(challenge-forfeit 의 42분 병목 재발 방지).
+`aiverify-mobile` 이 앱 소비처 전수 grep 으로 회신하고, pm-lead 가 독립 실측으로 교차 확인했다.
 
-1. 미결 2건에 대한 내 안 + 서버 실측 근거 + mobile 실측이 필요한 질문 3개
-2. `aiReason` 구현 완료 통지 (세 안 공통이라 계약 미결과 무관하게 확정) + 새 wire 상태 경고
+### 확정된 것
 
-### 내 제안 (🔴 확정이 아니다 — 답신 전)
-
-| 미결 | 내 안 | 근거 |
+| 미결 | 확정 | 결정적 근거 |
 |---|---|---|
-| §2 반려된 인증의 `status` | **A — `FAILED` 전이** | `ChallengeJudgementService:91` 이 `status == VERIFIED` 로 판정 입력을 만든다. A 면 `ChallengeVerdict`·`judge()` 변경 0줄. **B·C 는 `judge()` 가 `ai_verdict` 도 읽어야 해 판정 규칙이 두 곳으로 갈린다** (ADR-0013 §근거 2 위반) |
-| §3 `aiReason: null` 세 의미 | **앱은 구분하지 않는다** | 셋 다 *"아무것도 안 그린다"* 로 귀결. ⓑ(fail-open) 구분은 **wire 가 아니라 배치 요약**(`aiFailOpen`)이 진다 |
+| §2 반려된 인증의 `status` | **A — `FAILED` 전이** | 🔑 **B 안의 치명상**: `VerificationStatusPill` 이 `status` 만 보므로 B 면 같은 카드에 초록 *"인증완료"* 뱃지와 *"인정되지 않았습니다"* 가 **동시에** 뜬다. 막으려면 앱이 *"`aiReason` 이 있으면 뱃지를 실패로"* 를 갖게 되고 **그게 ADR-0013 §근거 2 의 사본**이다. A 면 `ChallengeVerdict`·`judge()` 변경 **0줄** |
+| §3 `aiReason: null` 세 의미 | **앱은 구분하지 않는다** | 셋 다 *"아무것도 안 그린다"* 로 귀결. ⓑ(fail-open) 관측은 **배치 요약**(`aiFailOpen`)이 진다 — 계약에 그 문장을 함께 박았다 |
+| **§1.1 wire 게이트** (협의 중 신설) | **`rejectsVerification()` 이 참인 건에만 non-null** | 아래 §결함 참조 |
 
-### 🔴 pm 초안 §1 의 예시 JSON 이 실제 계약 shape 과 달랐다
+### 🔴 협의가 실제 결함 1건을 잡았다 — 내 KDoc 이 **없는 계약을 있다고 적고 있었다**
 
-초안은 `data.verifications: [...]` 배열로 그려져 있으나 `confirmed` 된 실제 shape 은
-**`data.challenger` / `data.opponent` 객체 2개**다 (challenge-verification 계약 §4 + 서버 실측
-`ChallengeVerificationsData`). mobile-dev 에게 *"초안 JSON 기준으로 DTO 를 만들지 마라"* 고
-명시 통지했다. 계약 개정 시 바로잡는다.
+`aiverify-mobile` 이 `V13` 주석의 `ai_verdict` 에 `PASS` 가 포함된 것을 보고 역추적해 적발했고,
+pm-lead 가 독립 확인했다. **내가 게이트를 의도했는데 구현만 빠졌다**:
 
-### 계약 문서에서 함께 발견한 드리프트 1건
+| # | 위치 | 상태 |
+|---|---|---|
+| 1 | `MissionVerdictRecorder.kt` `status = if (verdict.rejectsVerification())` | ✅ 게이트 있음 |
+| 2 | 같은 `copy()` 안 `aiReason = verdict.reason` | ✅ **이게 맞다** — 컬럼은 전건 저장이 설계 |
+| 3 | 🔴 **`VerificationService.view()` `aiReason = verification?.aiReason`** | 🔴 **조건 0개 — 결함** |
 
-**challenge-verification 계약 §4 본문 표에 `photoDeleted` 가 빠져 있다.** change-log 에는
-등재돼 있고(2026-08-26, mypage 발원) 코드에도 존재하는데 본문만 낡았다. 계약 소유자로서
-`aiReason` 개정 시 함께 고친다.
+그런데 `NoOpMissionVerifier` KDoc 은 *"이 문자열은 사용자에게는 보이지 않는다 — 통과한 건의
+`aiReason` 은 wire 에 내려가지 않기 때문이다(계약)"* 라고 **단정**하고 있었다.
+🔴 **그 계약은 코드 어디에도 없었고, 컴파일도 테스트도 초록이라 조용했다.**
 
----
+**게이트 없이 사용자 화면에 나갔을 것들** (전부 실측 확인):
+
+| `ai_verdict` | 새는 문구 |
+|---|---|
+| `PASS` | 🔴 **이겼는데** *"인정되지 않았어요: {통과 사유}"* |
+| `UNVERIFIABLE` | *"…AI 검증이 비활성 상태입니다 (API 키 미설정)"* — 🔴 **무키 상태 제출 전건** |
+| `ERROR` | 🔴 **`"검증 중 예외: ${e.message}"` — 네트워크 예외 메시지가 그대로** |
+| `UNCERTAIN` | 통과인데 부정적 문구 |
+
+⚠️ **내가 mobile-dev 에게 한 *"지금 붙여도 `aiReason` 은 항상 null 로 옵니다"* 도 정확하지
+않았다** — 배치가 안 돈 건에서만 참이고, NoOp 도 `MissionVerdictRecorder` 를 탄다.
+mobile-dev 가 그 자리를 잡았다.
+
+🔵 **이 프로젝트에서 *"문서가 코드보다 앞서 있는데 아무도 몰랐다"* 의 7번째다**
+(challenge-forfeit 이 6건 수확). 🔴 **앞의 6건과 달리 사용자 화면에 직접 새는 건이었다.**
+
+**고친 방식** — 조건식 사본을 만들지 않았다:
+
+```kotlin
+// Verification (:domain:model) — 저장된 컬럼으로 판정을 재구성해 위임한다
+fun rejectedByAi(): Boolean {
+    val outcome = aiVerdict ?: return false
+    val confidence = aiConfidence ?: return false
+    return MissionVerdict(outcome, confidence, aiReason.orEmpty()).rejectsVerification()
+}
+
+// VerificationService.view() — wire 게이트
+aiReason = verification?.takeIf { it.rejectedByAi() }?.aiReason
+```
+
+🔴 **`outcome == REJECT && confidence >= 0.80` 을 wire 계층에 새로 적지 않았다.** 적으면 문턱이
+바뀌는 날 화면과 판정이 갈린다 — `MissionVerdict` KDoc 이 *"호출부마다 조합하면 한 곳이 빠지는
+날 조용히 정상 수행자가 패배한다"* 로 경계한 형태다.
+
+`NoOpMissionVerifier` KDoc 도 고쳤다 — **근거를 단정하지 않고 집행 지점(테스트)을 가리킨다.**
+
+### 🔴 요청받은 테스트 위치를 바꿨다 (의도된 이탈 — 보고)
+
+mobile-dev 와 pm-lead 둘 다 *"`WireShapeContractTest` 에 `ai_verdict = PASS` + 사유 → wire null
+을 추가하라"* 고 요청했다. **`VerificationServiceTest` 에 넣었다.**
+
+🔴 **`WireShapeContractTest` 에서는 그 단언이 아무것도 증명하지 못한다.** 그 테스트는
+`PartyVerificationDto` 를 **손으로 만들어** 직렬화를 보는데, 게이트는 그 **위 계층**
+(`view()`: `Verification` row → `PartyVerificationView`)에 있다. 거기서 `aiReason = null` 인 DTO 를
+만들어 *"null 이 나온다"* 를 단언하면 **Jackson 이 null 을 직렬화한다는 것만** 증명하고,
+**게이트가 사라져도 초록으로 남는다.** 있으나 마나 한 테스트인데 *"잠갔다"* 는 착각을 만들어 더 나쁘다.
+
+**대신 `VerificationServiceTest` 6건** — `Verification` row 를 심고 `view()` 를 통과시킨다:
+`PASS` / `UNVERIFIABLE` / `ERROR` / `UNCERTAIN` / **`REJECT`+conf 0.79** → 전부 wire `null`,
+`REJECT`+conf 0.93 → **non-null**. 🔑 다섯 번째가 게이트를 `outcome == REJECT` **만**으로 쓴
+구현과 갈라 준다.
+
+⚠️ `WireShapeContractTest` 에는 그 테스트가 **할 수 있는 일**만 넣었다 — `"aiReason":null` 이
+**원문에 키로 남는지**(`@JsonInclude(NON_NULL)` 방어) + `FAILED`+사유+사진경로 조합의 shape.
+
+### ✅ 순서 제약도 테스트로 고정했다 (pm-lead 요청)
+
+`ChallengeJudgementRunnerTest` — *"AI 가 양측을 반려하면 판정이 `BOTH_LOSE` 다"*.
+
+🔑 **순서를 직접 관찰하지 않고 결과로 가른다**: 양측 제출 + 양측 반려면 순서가 맞으면
+`BOTH_LOSE`, 뒤집히면 `DRAW` 다. **두 기대값이 갈라지므로 순서가 실제로 검증된다**
+(ADR-0012 §차등 검증과 같은 원리).
+
+🔴 **테스트에 이가 있는지도 확인했다** — 구현의 검증 호출을 판정 루프 **뒤로 일부러 옮겨**
+그 테스트 **1건만** 빨개지는 것을 보고 되돌렸다. 대조군(*"반려가 없으면 `DRAW`"*)도 함께 넣었다.
+
+### 정본 계약에 한 일
+
+1. **§4 본문 개정** — 응답 예시 2개(정상 + **AI 반려**) + 필드 표에 `aiReason` 추가
+2. **§4.1 신설** — wire 게이트를 **계약 문장**으로 박았다. 🔑 코드에만 있으면 앱이 `status` 와
+   `aiReason` 을 **둘 다** 봐야 하고 그때 B 안의 사본이 A 안 안에서 되살아난다
+3. 🔴 **낡은 문장 4건 정정** — `status` 로 사진 유무를 역산하던 서술이 전부 거짓이 됐다.
+   그중 *"`photoUrl` 은 `status` 와 `userId` 만으로 결정된다 — 앱이 조립해도 같다"* 가 가장
+   위험했다(결정 요인이 앱이 볼 수 없는 사진 key 로 바뀌었는데 조립을 허용하는 것처럼 읽혔다)
+4. 🟡 **`photoDeleted` 누락 보정** — 2026-08-26 부터 실재했는데 §4 표·예시에 0건이었다.
+   **change-log 를 별도 항목으로 갈랐다** — 섞으면 *"ai-verification 이 이 필드를 도입했다"* 로
+   읽히고 진짜 근거(mypage 회원탈퇴)가 사라진다
+5. **ai-verification 계약을 `confirmed` 로 전환 + §1 을 "이관됨" 으로 축약** (사본 방지).
+   §1.1·§2 의 낡은 지시문에는 **해소 표시를 그 명령문 바로 앞줄에** 달았다 — 접어 두면
+   grep 으로 읽는 쪽이 못 본다
+
+### mobile-dev 확인 요청 2건 — 둘 다 **그렇다**
+
+- `POST /challenges/{id}/verification` (`SubmitVerificationResponse`) 에 `aiReason` **없다.**
+  제출 시점엔 AI 를 부르지 않는다(호출은 자정 배치 앞단 1회 — ADR-0013 §결정 3)
+- `GET /challenges/active` (`ActiveChallengeResponse`) 에 `aiReason` **없다.** 🔵 mobile-dev 실측으로
+  **계약 범위가 커지지 않는 것이 확인됐다** — 판정 결과를 보여주는 화면은 `Challenge.Detail`
+  하나이고 그 화면이 `GET /challenges/{id}/verifications` 를 탄다. 홈 카드는 뱃지만 그리고
+  A 안이면 뱃지는 `status` 로 이미 바뀐다
 
 ## 미해결 이슈
 
 ### 🔴 차단 중 — 내가 못 끝낸 것
 
-1. **계약 확정 (`draft` → `confirmed`)** — mobile-dev 답신 대기. 답이 오면
-   challenge-verification `api-contract.md` **본문 개정** + 그쪽 `change-log.md` 등재 +
-   이 feature 의 api-contract 를 *"이관됨"* 으로 축약한다. 🔴 **사본을 남기지 않는다.**
-2. 🔴 **`aiReason` 이 결과 화면에 도달하는지 미확인** — 지금 `aiReason` 은
-   `GET /challenges/{id}/verifications` **에만** 있다. 홈/결과 카드가 쓰는
-   `ActiveChallengeResponse` 에는 `myVerificationStatus` 만 있고 `aiReason` 이 없다.
-   **결과 화면이 상세 조회를 안 탄다면 그쪽에도 필드를 실어야 하고 계약 범위가 커진다.**
-   mobile-dev 에게 물었고 이게 가장 급한 질문이다.
+1. ✅ **해소 — 계약 `confirmed`** (2026-09-22). 정본 개정 + change-log 2건 등재 완료.
+2. ✅ **해소 — 엔드포인트는 1개뿐**. mobile-dev 실측: 판정 결과 화면은 `Challenge.Detail`
+   하나이고 그 화면이 `GET /challenges/{id}/verifications` 를 탄다. `ActiveChallengeResponse`
+   **무변경**이고 계약 범위가 커지지 않았다.
+3. 🔴 **모바일 T-M2 미착수** — `aiReason` 렌더링 + 앱 3곳(`VerificationPhoto` · `myMissionSlot` ·
+   `VerificationStatusPill`)의 *"`FAILED` 면 사진이 없다"* 전제 제거. mobile-dev 범위이고
+   계약이 닫혔으니 착수 가능하다. 🔴 **서버만 고쳐도 화면은 아직 반려 사진을 안 그린다** —
+   `VerificationPhoto.kt` 의 `FAILED` 분기가 `photoUrl` 분기보다 **먼저** 걸린다(mobile 실측).
 
 ### 🟡 사용자 관문 — 코드로 해결되지 않는 것
 

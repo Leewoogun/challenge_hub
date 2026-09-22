@@ -10,9 +10,17 @@
   **요청·응답 shape 은 무변경**이고 바뀐 것은 *같은 요청에 대한 서버의 행동*이다.
   같이 딸려 온 것: §5 의 `max-age=86400` **폐기**(→ `no-cache` + ETag), §3 **회복 절차 소멸**.
   [change-log.md](./change-log.md) 에 등재돼 있다.
+  🔴 **2026-09-22 개정 — §4 응답에 `aiReason` 추가 (additive) + `FAILED` 의 의미 확장**
+  ([ai-verification](../ai-verification/api-contract.md), ADR-0013). `FAILED` 가 *"마감까지 미제출"*
+  **하나**에서 *"미제출 **또는** AI 반려"* **둘**로 넓어졌고, 그 결과 **`FAILED` 인데 `photoUrl` 이
+  non-null 인 조합**이 처음 생겼다. 🔴 사진 표시 판정을 `status` 에서 **사진 key 유무**로 옮긴 것이
+  이 개정의 실질이다 — §4.1(wire 게이트) · §4 필드 표 참조. 낡은 문장 4건도 함께 정정했다.
+  [change-log.md](./change-log.md) 에 등재돼 있다.
+  🟡 **함께 보정 — `photoDeleted` 가 2026-08-26 부터 실재했으나 §4 표·예시에 누락돼 있었다**
+  (mypage 발원). 이번 feature 가 만든 변경이 아니라 **누락 보정**이고 change-log 에 별도 항목이다.
   - ⚠️ **`confirmed` 는 계약 shape 에 대한 것이다.** §0.5 의 알림 문구는 여전히 🟡 초안이며, 문구 변경은 shape 을 바꾸지 않는다.
   - ✅ **`OPPONENT_VERIFIED` 발송 개시됨** — §0.6.1 절차 완료 (§0.5). 🔴 **단 발송은 최초 인증 1회뿐이다** (§3).
-- **최종 수정**: 2026-09-02 by backend-dev
+- **최종 수정**: 2026-09-22 by backend-dev
 - **상위 spec**: [spec.md](./spec.md)
 - **결정**: [ADR-0011](../../decisions/0011-photo-storage.md)(사진 저장) · [ADR-0002](../../decisions/0002-backend-foundation.md)(BaseResponse) · [ADR-0010](../../decisions/0010-datetime-model-localdatetime.md)(시간 표기)
 
@@ -553,14 +561,36 @@ Bearer JWT. **당사자만.** 🔴 제3자에게는 경로 자체를 내려주�
     "challenger": {
       "userId": 1, "status": "VERIFIED",
       "photoUrl": "/api/v1/challenges/7/photos/challenger",
-      "verifiedAt": "2026-08-14 15:32:10"
+      "verifiedAt": "2026-08-14 15:32:10",
+      "photoDeleted": false,
+      "aiReason": null
     },
     "opponent": {
       "userId": 14, "status": "PENDING",
-      "photoUrl": null, "verifiedAt": null
+      "photoUrl": null, "verifiedAt": null,
+      "photoDeleted": false,
+      "aiReason": null
     }
   } }
 ```
+
+**AI 가 반려한 인증**은 이렇게 나간다 (ai-verification, 2026-09-22):
+
+```json
+    "opponent": {
+      "userId": 14, "status": "FAILED",
+      "photoUrl": "/api/v1/challenges/7/photos/opponent",
+      "verifiedAt": "2026-09-22 22:40:11",
+      "photoDeleted": false,
+      "aiReason": "책상 위 커피잔 사진으로, 미션(주 3회 운동) 수행 증거로 보기 어렵습니다."
+    }
+```
+
+> 🔴 **`FAILED` 인데 `photoUrl` 이 non-null 인 조합이 여기서 처음 생겼다.**
+> 이 계약이 2026-08-14 에 `confirmed` 된 시점부터 2026-09-22 까지 `FAILED` 는 **100%
+> *"마감까지 미제출"*** 이었고 `photoUrl` 이 항상 null 이었다. 🔴 **그 등식을 코드에 굳히지 마라** —
+> 반려 건은 사진이 실재하고, 판정의 **근거**라서 보여야 한다(기획 §2.4 증거 보존).
+> 사진 표시 판정은 `status` 가 아니라 **`photoUrl` 유무**로 하라.
 
 `challenger`/`opponent` 를 **역할 그대로** 준다 — `GET /challenges/{id}` 와 같은 시점이라 상세 화면에서
 두 응답을 합칠 때 뒤집기 계산이 없다 (soul-oath 계약 §3 과 같은 판단).
@@ -570,12 +600,49 @@ Bearer JWT. **당사자만.** 🔴 제3자에게는 경로 자체를 내려주�
 | `challengeId` | Long | ✗ | |
 | `challenger` / `opponent` | Object | ✗ | |
 | `.userId` | Long | ✗ | |
-| `.status` | String enum | ✗ | `PENDING` / `VERIFIED` / `FAILED`. row 가 없어도 `PENDING` |
-| `.photoUrl` | String | ✅ **nullable** | `VERIFIED` 가 아니면 null. 🔴 **상대 경로**이며 **`Authorization` 이 필요하다**(예전과 반대) |
-| `.verifiedAt` | String | ✅ **nullable** | |
+| `.status` | String enum | ✗ | `PENDING` / `VERIFIED` / `FAILED`. row 가 없어도 `PENDING`. 🔴 **`FAILED` 는 두 가지다** — 미제출로 마감 **또는** AI 반려 (아래 `aiReason` 으로 갈린다) |
+| `.photoUrl` | String | ✅ **nullable** | **사진 key 가 있으면** 경로, 없으면 null. 🔴 **`status` 로 결정되지 않는다** — AI 반려된 `FAILED` 도 경로를 갖는다. 🔴 **상대 경로**이며 **`Authorization` 이 필요하다**(예전과 반대) |
+| `.verifiedAt` | String | ✅ **nullable** | 제출한 적이 없으면 null. **반려돼도 남는다**(제출 시각이라서) |
+| `.photoDeleted` | Boolean | ✗ (**non-null**, 기본 `false`) | `true` = **탈퇴로 사진이 영구 삭제됨**. `false` 인데 `photoUrl` 도 null 이면 그건 미제출 또는 로드 실패다. 🟡 **2026-08-26 부터 실재했으나 이 표에 누락돼 있었다** (mypage 발원 — change-log 참조) |
+| `.aiReason` | String | ✅ **nullable** | **AI 반려 사유.** 🔴 **미인증 처리가 확정된 건에만 non-null** — 아래 §4.1 참조. 앱은 **non-null 일 때만 표시**하고 `null` 에서 어떤 결론도 파생하지 않는다 |
 
 🔴 **`null` 이어도 키는 남는다.** `@JsonInclude(NON_NULL)` 을 쓰지 않으며 `WireShapeContractTest` 가 이를 잠갔다.
 키 부재와 값 null 은 모바일에서 **다른 예외**가 된다 (#24 선례).
+
+### 🔴 §4.1 `aiReason` 은 **미인증 확정 건에만** non-null — 컬럼과 wire 는 다르다
+
+**2026-09-22, ai-verification.** 이건 구현 세부가 아니라 **계약**이다:
+
+```
+wire 의 aiReason 이 non-null  ⟺  그 인증이 AI 판별로 미인증 처리됐다
+                                 (= ai_verdict == REJECT AND ai_confidence >= 0.80)
+```
+
+🔑 **`ai_reason` 컬럼은 이것보다 넓다.** 컬럼은 rubric 튜닝의 유일한 근거라
+`PASS` · `UNCERTAIN` · `UNVERIFIABLE` · `ERROR` 의 사유까지 **전건 저장**되고, 그게 설계대로다
+(ai-verification spec T-B2, `V13` 주석). **wire 는 사용자 화면이라 다르다.**
+
+🔴 **그래서 서버는 컬럼을 그대로 흘리지 않는다.** 흘리면 사용자가 보는 것:
+
+| `ai_verdict` | 게이트가 없으면 화면에 뜨는 것 |
+|---|---|
+| `PASS` | 🔴 **이겼는데** *"인증이 인정되지 않았어요: {통과 사유}"* |
+| `UNVERIFIABLE` | *"…AI 검증이 비활성 상태입니다 (API 키 미설정)"* — **키 없는 기간의 제출 전건** |
+| `ERROR` | 🔴 **네트워크 예외 메시지가 그대로 사용자에게** |
+| `UNCERTAIN` | 통과인데 부정적 문구 |
+| `REJECT` + conf ≥ 0.80 | ✅ **이것만 나간다** |
+
+🔵 **앱이 이 조항에 기대는 것은 규칙 한 줄이다**: *"`aiReason` 이 non-null 이면 그린다."*
+앱은 `status` 와 `aiReason` 을 **둘 다 보지 않는다** — 그렇게 만들면 판정 규칙의 사본이 앱에
+생긴다(ADR-0013 §근거 2). 🔴 **이 조항이 사라지면 그 사본이 되살아난다.**
+
+⚠️ **이 게이트가 실제로 한 번 빠져 있었다** (2026-09-22, `aiverify-mobile` 적발). 코드에 없는
+채로 서버 KDoc 이 *"통과한 건의 `aiReason` 은 wire 에 내려가지 않는다(계약)"* 고 단정하고 있었고,
+**컴파일도 테스트도 초록이라 조용했다.** 그래서 이 조항이 문서에 있고, 서버는
+`VerificationServiceTest` 6건으로 각 `ai_verdict` 의 비노출을 단언한다.
+
+🔵 `aiVerdict` / `aiConfidence` 는 **내리지 않는다.** 앱이 쓸 데가 없고, **신뢰도 숫자를
+노출하면 사용자가 그 값을 두고 다툰다.** 서버 컬럼으로만 남는다.
 
 #### nullable 전수 답변 (`verif-mobile` 질문 3.4)
 
@@ -583,17 +650,20 @@ Bearer JWT. **당사자만.** 🔴 제3자에게는 경로 자체를 내려주�
 |---|---|
 | `challenger` / `opponent` **객체 자체**가 null 일 수 있나 | ❌ **아니다. 항상 non-null.** 🔵 **별도 엔드포인트를 고른 부수 이득**이다 — 얹기 안이었다면 `verification: null`(미수락 챌린지)이 생겨 `contract: null` 과 **똑같은 실패 모드**가 반복됐을 것이다. 여기서는 row 가 없어도 객체를 만들어 `status = PENDING` 으로 채운다 |
 | `status` 가 null 일 수 있나 | ❌ **아니다.** row 부재 시에도 `PENDING`. 값은 `PENDING`/`VERIFIED`/`FAILED` **3종뿐** (모바일 enum 과 일치) |
-| `photoUrl` 은 `status != VERIFIED` 면 null 인가 | ✅ 그렇다 |
+| `photoUrl` 은 `status != VERIFIED` 면 null 인가 | 🔴 **더는 아니다 (2026-09-22 ai-verification).** ~~✅ 그렇다~~ → 판정 기준이 **사진 key 유무**로 바뀌었다. **AI 반려된 `FAILED` 는 `photoUrl` 을 갖는다** — 제출한 사진이 실재하고 그게 판정의 근거다. `status` 로 사진 유무를 역산하지 마라 |
 | `VERIFIED` 인데 `photoUrl` 이 null 일 수 있나 | ❌ **서버가 그 조합을 만들지 않는다.** 제출 확정이 `photo_url` 과 `status` 를 같은 트랜잭션에서 함께 쓴다 |
 | ~~`photoUrlExpiresAt`~~ | 🔴 **필드가 제거됐다 (2026-08-18 2차 개정)** — 만료가 없다 |
-| `verifiedAt` | `VERIFIED` 가 아니면 null. 포맷은 ADR-0010 (`T`·`Z`·밀리초 없음) |
+| `verifiedAt` | 🔴 **제출한 적이 없으면** null (2026-09-22 정정 — ~~`VERIFIED` 가 아니면 null~~). **AI 반려된 `FAILED` 에는 남아 있다** — 제출 시각이라서 반려가 지우지 않는다. 포맷은 ADR-0010 (`T`·`Z`·밀리초 없음) |
 
-**null 최대 픽스처**(양측 `PENDING`, **4필드** 전부 null)는 `WireShapeContractTest` 와
-`VerificationControllerTest` 양쪽에 있고, 후자는 **원문 문자열에 `"photoUrl":null` 이 실제로 들어 있는지**까지 본다.
+**null 최대 픽스처**(양측 `PENDING` — nullable 3필드 `photoUrl`·`verifiedAt`·`aiReason` 전부 null,
+`photoDeleted` 는 non-null `false`)는 `WireShapeContractTest` 와 `VerificationControllerTest` 양쪽에
+있고, 후자는 **원문 문자열에 `"photoUrl":null` 이 실제로 들어 있는지**까지 본다.
 
-🔵 **`photoUrl` 은 이제 `status` 와 `userId` 만으로 결정되는 값이다.** 서버가 만들지만 앱이 조립해도 같은
-결과가 나온다 — 그래도 **서버가 내려주는 값을 쓰라.** 경로 형태가 바뀌면 앱을 고치지 않아도 되도록
-계약이 그것을 감싼다.
+🔴 **~~`photoUrl` 은 `status` 와 `userId` 만으로 결정되는 값이다~~ — 2026-09-22 부터 거짓이다.**
+결정 요인은 **서버만 아는 사진 key 의 유무**이고(AI 반려된 `FAILED` 도 key 를 갖는다), 앱은 그 key 를
+보지 못한다. 🔑 **그래서 앱이 경로를 조립해 같은 결과를 얻는다는 보장이 사라졌다** — 조립하면
+반려된 사진에서 갈린다. **서버가 내려주는 값을 쓰라.** 경로 형태가 바뀌어도 앱을 고치지 않아도
+되도록 계약이 감싸는 것은 그대로다.
 
 ### 에러 Response (HTTP 200)
 
