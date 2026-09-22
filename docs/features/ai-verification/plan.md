@@ -100,6 +100,14 @@ spec 에 없던 항목이다. **Task 9** 로 넣었다.
 
 ## §2 태스크
 
+> 🔴 **Task 5 · Task 8 전체 + Task 9 Step 2 가 폐기됐다 — 이미 개통된 기능이다**
+> (2026-09-02 verification-photo-replace 로 분할·완료).
+> **실행할 것은 Task 1 · 2 · 3 · 4 · 6 · 7 · 9(Step 1·3·4) 이다.** 각 자리에 인라인 표시를 달아 뒀다.
+> ⚠️ **이 문서에서 낡은 항목이 세 번 나왔다**(Task 5 · Task 8 · Task 9 Step 2). 분할 배너가 파일 머리에만
+> 있었기 때문이다. **남은 Step 을 실행하기 전에 "이미 돼 있지 않은지" 를 코드로 먼저 확인하라** —
+> 이 plan 은 2026-09-02 에 쓰였고 그 뒤로 두 feature 가 지나갔다.
+> ⚠️ ADR-0013 이 accepted 되어 §4 열린 항목 2번도 해소됐다 — 시작 모델 `gemini-3.5-flash` · `thinking_level` `low`.
+
 > 순서에 의존성이 있다: **Task 1 → 2 → 3** 이 기반이고, **4·5·6** 은 서로 독립,
 > **7 → 8·9** 는 계약 확정 후.
 
@@ -489,7 +497,12 @@ git commit -m "feat(ai-verification): GeminiMissionVerifier — 구조화 출력
 
 ---
 
-### Task 5: 재제출 허용 전환 (`last-write-wins`)
+### ~~Task 5: 재제출 허용 전환 (`last-write-wins`)~~
+
+> 🔴 **폐기 — 실행하지 마라. 이미 개통됐다.**
+> **[verification-photo-replace](../verification-photo-replace/summary.md) 가 2026-09-02 에 소유권을 가져가 완료·커밋했다**
+> (app `2a650ba` / server `e2f57f5`). 아래 Step 들은 **분할 전 원안**이며 기록으로만 남긴다.
+
 
 🔴 **`confirmed` 계약 개정이다.** api-contract.md 를 고치고 `change-log.md` 에 등재한다
 (api-contract 소유자는 backend-dev — 묻지 말고 고치고 이력에 남긴다).
@@ -688,7 +701,12 @@ git commit -m "feat(ai-verification): 조회 응답에 aiReason 노출"
 
 ---
 
-### Task 8: 모바일 — 재촬영·교체 UI
+### ~~Task 8: 모바일 — 재촬영·교체 UI~~
+
+> 🔴 **폐기 — 실행하지 마라. 이미 개통됐다.**
+> **[verification-photo-replace](../verification-photo-replace/summary.md) 가 2026-09-02 에 소유권을 가져가 완료·커밋했다**
+> (app `2a650ba` / server `e2f57f5`). 아래 Step 들은 **분할 전 원안**이며 기록으로만 남긴다.
+
 
 **Files (challenge-app):**
 - Modify: `:feature:challenge:detail` — 인증 CTA 게이트
@@ -720,7 +738,11 @@ Expected: 로그에 `BUILD SUCCESSFUL`. 결과는 리포트에 **숫자로** (CL
 remote DTO → 도메인 → State 로 `aiReason: String?` 을 흘리고, 결과 표시에서 non-null 일 때
 *"인증이 인정되지 않았습니다: {aiReason}"* 를 노출한다.
 
-- [ ] **Step 2: 🔴 재제출 전 선행 조회 제거 (§0.2)**
+- [x] ~~**Step 2: 🔴 재제출 전 선행 조회 제거 (§0.2)**~~ — ✅ **이미 끝나 있다. 실행하지 마라.**
+
+> **실측 2회** (`aiverify-mobile` 적발 → pm 확인, 2026-09-22): `VerifyViewModel.kt` 의 `submit()` 이
+> **L90 에서 `submitVerification` 을 바로 호출한다** — `getVerifications` 류 선행 조회 **0건**.
+> verification-photo-replace 가 가져간 몫이다. 아래는 분할 전 원안이다.
 
 challenge-verification T-M3 이 *"재시도 전에 조회 API 로 내 status 를 확인"* 하도록 구현해 뒀다.
 재제출이 허용되면 **이 선행 조회는 존재 이유를 잃는다** — 그냥 다시 올리면 된다.
@@ -753,7 +775,7 @@ Expected: 로그에 `BUILD SUCCESSFUL`. 결과는 **숫자로**
 pm-lead 가 spec 검토 시 물었으나 답을 받지 못한 2건. **구현을 막지는 않으나 남겨 둔다.**
 
 1. **§6 "오탐은 회복 불가"** — 이의제기 절차를 만들지 않기로 한 결과를 그대로 받는 것이 맞는지
-2. **ADR-0013** — 지금 쓸지, `run-feature` 착수 시점에 쓸지.
+2. ~~**ADR-0013** — 지금 쓸지, `run-feature` 착수 시점에 쓸지.~~ ✅ **2026-09-20 해소 — [ADR-0013](../../decisions/0013-ai-verification-provider.md) `accepted`**, `repos.json` 갱신 완료. 원문:
    대상: ⓐ 진위 판정 원안 반전 ⓑ 외부 AI 제공자 도입(무료 티어 배제 사유 포함).
    확정 시 `repos.json` 의 *"인증 진위 판정 주체 보류 — 원안 유지"* 문구도 함께 갱신
 

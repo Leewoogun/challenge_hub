@@ -2,7 +2,7 @@
 
 - **feature-id**: challenge-forfeit
 - **완료일**: 2026-09-05
-- **상태**: **implemented** — 전 범위 구현·검증 완료. 🔴 **양 레포 미커밋** + **실기 검증 0건**
+- **상태**: **implemented** — 전 범위 구현·검증 완료. ~~🔴 양 레포 미커밋~~ → ✅ **2026-09-22 커밋 확인** (server `1044bc1` / app `1ff4ef4`, 커밋 내용 실측 — V12·ChallengeForfeitService·ForfeitText·ForfeitChallengeResponse 실재). 🔴 **남은 미충족은 실기 검증 0건 하나다**
 - **선행**: [challenge-result](../challenge-result/summary.md)(`ChallengeVerdict`·자정 배치·전적 집계) · [soul-oath](../soul-oath/summary.md)(컨셉)
 - **관계**: [ai-verification](../ai-verification/spec.md) 에서 **분할된 feature** — 의존 없음(§분할 근거)
 
@@ -303,7 +303,9 @@ backend 실기동 1차(문구 없음) **row 0건 + WARN**, 3차(문구 있음) *
 
 ## 미해결 이슈
 
-- [ ] 🔴 **양 레포 미커밋** — 서버 35파일 · 앱 36파일. 커밋은 사용자 판단
+- [x] ~~🔴 **양 레포 미커밋** — 서버 35파일 · 앱 36파일. 커밋은 사용자 판단~~
+      → ✅ **2026-09-22 커밋 확인** (server `1044bc1` / app `1ff4ef4`, 커밋 내용 실측 — V12·ChallengeForfeitService·ForfeitText·ForfeitChallengeResponse 실재). ⚠️ 사용자는 커밋을 알려 주지 않는다 — **이 줄은 2026-09-22 ai-verification 진행 중
+      팀원 보고의 HEAD 값이 내 기억과 달라서 재실측해 발견했다.** 미커밋 주장은 조용히 낡는다
 - [ ] 🔴 **실기 검증 0건** — 특히 ① 기권 → 상대 화면·푸시 도착 ② 동시 기권(실기기 2대)
       ③ 알림 목록에서 안 눌리는지 육안. 서버 실기동으로 ①의 서버측은 확인됐으나 **앱 왕복은 미확인**
 - [ ] 🎨 **디자이너 확인 7건** — 진입점 위치(맨 아래)·형태(텍스트 1줄)·색(`error`) / 안내 문구 자리 /

@@ -93,6 +93,23 @@ AI 가 답하지 않는 것: "누가 이겼는가"                        (← C
 
 Gemini 구조화 출력(`responseMimeType: "application/json"` + `responseSchema`)으로 강제한다.
 
+> 🔴 **2026-09-22 정정 — 위 API 표기는 낡았다** (`aiverify-backend` 적발, pm 웹 문서 확인).
+> `generateContent` 는 *"fully supported"* 지만 **legacy** 로 분류됐고, **Interactions API 가
+> `v1` 에서 GA + 신규 프로젝트 권장**이다(2026-06). 2026-05 breaking change 로 형태가 바뀌었다:
+>
+> | | 위 표기 (legacy) | 실제 (2026-09-22) |
+> |---|---|---|
+> | 엔드포인트 | `models/{model}:generateContent` | **`POST /v1/interactions`** |
+> | 구조화 출력 | `generationConfig.responseMimeType` + `responseSchema` | `response_format = {type, mime_type, schema}` |
+> | 입력 | `contents[].parts[].inline_data` | `input[] = {type:"text"} / {type:"image", data, mime_type}` |
+>
+> 🔵 **결정의 본체는 그대로다** — *"구조화 출력으로 4필드를 강제한다"* 는 지켜지고 **필드명만
+> 다르다.** 그래서 이건 개정이 아니라 **인라인 정정**이다.
+> 🔴 **`v1beta` 가 아니라 `v1` 을 쓴다** — `v1beta` 는 *"early features, actively being
+> developed"* 이고 **5월 default flip · 6/8 레거시 제거가 일어난 바로 그 채널**이다. 개인 프로젝트에
+> 상시로 깨질 채널을 물리지 않는다.
+> ⚠️ 위 표기를 그대로 구현하면 **400 을 받는다.** 모델 ID `gemini-3.5-flash` 는 유효하다.
+
 **미인증 처리는 세 조건이 전부 참일 때만:**
 
 ```

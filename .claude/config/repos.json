@@ -144,7 +144,7 @@
     },
     "blockers": [
       "✅ 2026-04-23 완료: 패키지 com.lwg.challenge, 프로젝트명 Challenge로 리네임 적용됨.",
-      "✅ 2026-07-28 확인 완료: base URL은 이미 challenge 서버 기준. remote/network/build.gradle.kts가 buildkonfig로 Android(기본 http://10.0.2.2:8080/)와 iOS(기본 http://localhost:8080/)를 분리하고 local.properties의 challenge_api_base_url_android/_ios로 오버라이드한다. TMDB 흔적 코드·설정 전부 0건 (68d6533 시점에 정리됨). ⚠️ 단 local.properties 값이 LAN IP 하드코딩이라 네트워크가 바뀌면 재설정 필요 — ADR-0007 환경 분리에서 다룰 사안.",
+      "✅ 2026-07-28 확인 완료: base URL은 이미 challenge 서버 기준. remote/network/build.gradle.kts가 buildkonfig로 Android(기본 http://10.0.2.2:8080/)와 iOS(기본 http://localhost:8080/)를 분리하고 local.properties의 challenge_api_base_url_android/_ios로 오버라이드한다. ~~TMDB 흔적 코드·설정 전부 0건 (68d6533 시점에 정리됨).~~ 🔴 **2026-09-22 거짓으로 판명 — `:local:database` 모듈이 통째로 남아 있다**(ai-verification 중 발견). `AppDatabase` 의 엔티티가 `SearchHistoryEntity`(검색 기록)·`FavoriteEntity`(찜)로 **챌린지 도메인이 아니다**. 프로덕션 소비처 0건이고 어느 모듈도 의존하지 않는다 — 참조는 `settings.gradle.kts` 의 `include` 한 줄뿐. 🔴 **그런데 무해하지 않다**: root-level `iosSimulatorArm64Test` 가 이 모듈의 KSP 에서 `@ConstructedBy` 누락으로 BUILD FAILED 한다. 백로그 참조. ⚠️ 단 local.properties 값이 LAN IP 하드코딩이라 네트워크가 바뀌면 재설정 필요 — ADR-0007 환경 분리에서 다룰 사안.",
       "✅ 2026-05-11 완료: :feature:ex1/ex2/ex3 모듈 통째 삭제 (bottom-navigation feature).",
       "✅ 2026-05-25 완료: :feature:home placeholder → challenge 도메인 본 UI 교체 (home-feed feature, HomeScreen + StatsBar + ChallengeCard + HomeEmptyState).",
       "⚠️ CLAUDE.md의 모듈 구조가 README와 불일치 — :core:domain/network/data 라고 적혀 있으나 실제는 :domain:*/:remote:*/:data:* 구조. 정정 필요. (ADR-0003 마지막 잔여)"
