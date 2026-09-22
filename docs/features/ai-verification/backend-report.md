@@ -244,29 +244,34 @@ gemini:
 | 모듈 | tests | skipped | failures | errors |
 |---|---|---|---|---|
 | `:app` | 243 | 50 | 0 | 0 |
-| `:service` | 298 | 0 | 0 | 0 |
+| `:service` | 306 | 0 | 0 | 0 |
 | `:infra:external` | 57 | 0 | 0 | 0 |
 | `:domain:model` | 77 | 0 | 0 | 0 |
 | `:core` | 23 | 0 | 0 | 0 |
-| **합계** | **698** | **50** | **0** | **0** |
+| **합계** | **706** | **50** | **0** | **0** |
 
-**→ 648/698 passed.**
+**→ 656/706 passed.**
 
 ⚠️ **skip 50 은 이 feature 와 무관한 기존 blocker다** — 전부 Testcontainers 통합 테스트이고
 컨테이너 런타임(Docker 등) 부재로 상시 skip 된다. 내가 추가한 테스트 중 skip 은 0건이다.
 🔵 **`repos.json` blockers 는 "45건" 으로 적고 있다 — 실측은 50건이다** (앞선 feature 들이
 늘렸는데 그 목록을 갱신하지 않았다). 사소하지만 조용히 낡는 숫자라 적어 둔다.
 
-### 이 feature 가 추가한 테스트 — **43/43 passed**
+### 이 feature 가 추가한 테스트 — **51/51 passed**
 
 | 테스트 | 건수 | 고정하는 명제 |
 |---|---|---|
 | `MissionVerifierConfigTest` | 5 | 🔴 **키가 없어도 서버가 뜬다** (NoOp 선택 + 예외 미전파) |
 | `GeminiMissionVerifierTest` | 19 | 판정 파싱 · fail-open 5경로 · **인젝션 방어 문구 존재** · base64 인라인 · 스키마 4필드 |
 | `MissionVerificationRunnerTest` | 14 | 반려 3조건 · 멱등 · 건별 격리 · 미제출/기권 호출 0회 · `BOTH_LOSE` 입력 |
-| `VerificationServiceTest` (추가분) | 4 | 🔴 **반려돼도 사진이 보인다** + 미제출 FAILED 는 여전히 사진 없음 |
+| `VerificationServiceTest` (추가분) | 10 | 🔴 **wire 게이트 6건** (`PASS`/`UNVERIFIABLE`/`ERROR`/`UNCERTAIN`/문턱미만 → null, 반려확정 → non-null) + **반려돼도 사진이 보인다 4건** |
+| `ChallengeJudgementRunnerTest` (추가분) | 2 | 🔴 **순서 제약** (양측 반려 → `BOTH_LOSE`) + 대조군 (`DRAW`) |
 | `WireShapeContractTest` (추가분) | 1 | `FAILED` + `aiReason` + `photoUrl` non-null 조합을 shape 으로 고정 |
-| **합계** | **43** | |
+| **합계** | **51** | |
+
+> 🔵 **집계 방법**: 신규 파일 3개는 결과 XML 의 `tests=` 값, 기존 파일 3개는 `git diff` 에서
+> 추가된 `fun \`…\`` 줄 수. ⚠️ 중간 보고에서 이 수를 **53 으로 잘못 말했다** — 추정값이었고
+> 실측은 51 이다.
 
 🔴 **회귀 0건.** 기존 `ChallengeJudgementRunnerTest` / `ChallengeForfeitServiceTest` 는
 `ChallengeJudgementRunner` 생성자가 늘어나 **AI 검증 비활성 배선**(`disabledMissionVerificationRunner`)
@@ -281,7 +286,8 @@ gemini:
 |---|---|---|---|
 | 1 | `challenge_aiverify_check` | 18080 | 🔴 **기동 실패** — `ai_confidence` 타입 불일치 (위 §마이그레이션) |
 | 2 | 〃 (drop → create) | 18080 | ✅ V13 적용 + `Started ChallengeServerApplicationKt in 5.048s` |
-| 3 | `challenge_aiverify_check2` | 18081 | ✅ 기동 + OpenAPI 실측 |
+| 3 | `challenge_aiverify_check2` | 18081 | ✅ 기동 + OpenAPI 실측 (`aiReason` 추가 후) |
+| 4 | `challenge_aiverify_final` | 18082 | ✅ 기동 + OpenAPI 재확인 (**wire 게이트 반영 후**) |
 
 기동 로그 실측 (2회차·3회차 공통):
 ```
@@ -298,7 +304,7 @@ Started ChallengeServerApplicationKt in 5.114 seconds
 `ai_confidence double precision` / `ai_reason text` / `ai_checked_at timestamp without time zone`.
 컬럼 주석 4개도 확인했다.
 
-**정리 완료** — throwaway DB 2개 drop, 프로세스 종료, 임시 사진 폴더 삭제. 남은 DB 는 `challenge` 뿐이다.
+**정리 완료** — throwaway DB 3개 drop, 프로세스 전부 종료(포트 18080~18082 비었음), 임시 사진 폴더 삭제. 남은 DB 는 `challenge` 뿐이다.
 
 ---
 
