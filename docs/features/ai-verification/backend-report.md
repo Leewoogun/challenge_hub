@@ -101,7 +101,30 @@ AI 반려가 **`FAILED` 인데 사진이 있는 row** 를 처음 만들었고, �
 
 ## DB 마이그레이션
 
-**`V13__verification_ai_verdict.sql`** — `verifications` 에 4컬럼 (전부 nullable)
+**2건.** `V13`(컬럼 추가) + `V14`(주석 정정).
+
+### `V14__verification_verified_at_recomment.sql` — 🔴 **DML 0 · DDL 0, 주석만**
+
+`V9` 의 `verified_at` 컬럼 주석이 **이 feature 의 변경으로 거짓이 됐다** (pm-lead 적발):
+
+```
+V9 원문: 'VERIFIED 로 전이한 시각 … PENDING/FAILED 면 NULL. 판정 feature 가 이 값을 읽는다'
+                                    ^^^^^^^^^^^^^^^^^^^^^^  ← 거짓이 됐다
+```
+
+AI 반려가 `VERIFIED → FAILED` 전이를 만들면서 **`FAILED` 인데 `verified_at` 이 남은 row** 가
+생겼다. 🔴 **하필 내 `photoDeleted` 판정이 그 반대(`verifiedAt != null`)에 의존한다** — 다음 사람이
+컬럼 주석을 읽고 *"`FAILED` 면 null"* 이라고 믿으면 그 판정을 **버그로 읽고 되돌린다.**
+
+새 주석에 담은 것: `verified_at` = **제출(교체) 확정 시각**이고 `submit` 만이 쓴다 ·
+🔴 *"`VERIFIED` 로 전이한 시각으로 읽지 마라 — `status` 와 독립이다"* (명령문) ·
+`FAILED` 두 갈래(미제출 NULL / **AI 반려 non-NULL**) · 교체 시 갱신 · 탈퇴는 이 값을 보존 ·
+읽는 곳 3개(판정 배치 / `photoDeleted` / **앱 사진 캐시 키 `photoUrl + verifiedAt`**).
+
+⚠️ **V13 을 직접 고친 것과 판단이 다른 이유**: V9 는 **이미 커밋돼 배포 이력에 있다.**
+V13 은 미커밋·throwaway 한정이었다. 🔵 `V9` 자신이 *"주석만 고치는 마이그레이션"* 의 선례다.
+
+### `V13__verification_ai_verdict.sql` — `verifications` 에 4컬럼 (전부 nullable)
 
 ```sql
 ai_verdict    VARCHAR(20)       -- PASS / REJECT / UNCERTAIN / UNVERIFIABLE / ERROR
@@ -161,10 +184,37 @@ V13 을 직접 고쳤다.** 방금 만든 컬럼에 V13+V14 쌍을 남기는 것
 
 🔵 **결정의 본체는 그대로다** — *"구조화 출력으로 4필드를 강제한다"* 는 지켜졌고 필드 이름만
 다르다. ADR 개정 대상은 아니라고 판단했다(§결정 5 가 고정하는 것은 제공자와 호출 형태이지
-필드명이 아니다). 다만 **다음 사람이 spec 대로 짜면 400 을 받는다** — pm-lead 판단을 요청한다.
+필드명이 아니다). ✅ **pm-lead 가 spec §5.3 · ADR-0013 §결정 2 양쪽에 인라인 정정 각주를 넣었다.**
 
-`Api-Revision: 2026-05-20` 를 명시적으로 보낸다. 그 breaking change 가 한 번 일어났고,
-고정돼 있었다면 조용히 깨지지 않았을 종류의 변경이다. 공식 문서 예제가 보내는 값 그대로다.
+`Api-Revision: 2026-05-20` 을 명시적으로 보낸다. 그 breaking change 가 한 번 일어났고,
+고정돼 있었다면 조용히 깨지지 않았을 종류의 변경이다.
+
+### 🔴 `v1beta` → `v1` 로 옮겼다 (pm-lead 지시 + 직접 확인)
+
+공식 문서 **두 곳이 충돌**해서 양쪽을 읽었다:
+
+| 문서 | 말하는 것 |
+|---|---|
+| `api-versions` | *"The Interactions API and its core features are **generally available in `v1`**"* + **구조화 출력·thinking 둘 다 `v1` 열에 ✓** |
+| `interactions/text-generation` | 예제가 `/v1beta/interactions`, *"currently in Beta"* |
+
+**전자가 버전 권위다.** 후자는 예제가 안 따라온 것이고(SDK 기본값이 `v1beta`), `v1beta` 는 공식
+표현으로 *"actively being developed"* 이며 **2026-05 breaking change 가 일어난 바로 그 채널**이다.
+개인 프로젝트에 상시로 깨질 채널을 물리지 않는다. 근거를 `INTERACTIONS_PATH` KDoc 에 박았다.
+
+### 🔴 `output_text` 폴백을 지웠다 — **문서 모호성이 아니라 내 오독이었다**
+
+중간 리포트에 *"공식 문서 두 곳이 서로 다른 자리를 가리켜 둘 다 받아내게 구현"* 이라고 적었다.
+**그 서술이 틀렸다.** API 레퍼런스가 응답 최상위 필드를 **전수 열거**하며 명시한다:
+
+> *"Generated text location: `steps[].content[].text` — **there is no top-level `output_text` field**"*
+
+두 문서가 말한 `output_text` 는 **SDK 헬퍼**(`interaction.output_text`)였다. 즉 문서는 어긋나지
+않았고 **내가 SDK 헬퍼를 wire 필드로 읽었다.** 관측되지 않은 경로에 대한 방어 코드였으므로 지웠다
+(*"가정에 방어 로직을 넣지 않는다"*).
+
+🔑 **테스트는 지우지 않고 반대 방향으로 고정했다** — *"`output_text` 라는 최상위 필드는 쓰지
+않는다"*(`extractOutputText` 가 `null` 반환). 그냥 지우면 다음 사람이 같은 오독으로 다시 넣는다.
 
 ### HTTP 수단 — **WebClient** (plan 이 backend-dev 재량으로 남긴 선택)
 
@@ -288,6 +338,7 @@ gemini:
 | 2 | 〃 (drop → create) | 18080 | ✅ V13 적용 + `Started ChallengeServerApplicationKt in 5.048s` |
 | 3 | `challenge_aiverify_check2` | 18081 | ✅ 기동 + OpenAPI 실측 (`aiReason` 추가 후) |
 | 4 | `challenge_aiverify_final` | 18082 | ✅ 기동 + OpenAPI 재확인 (**wire 게이트 반영 후**) |
+| 5 | `challenge_v14_check` | 18083 | ✅ **V14 적용** + DB 에서 새 컬럼 주석 실측 확인 |
 
 기동 로그 실측 (2회차·3회차 공통):
 ```
@@ -304,7 +355,16 @@ Started ChallengeServerApplicationKt in 5.114 seconds
 `ai_confidence double precision` / `ai_reason text` / `ai_checked_at timestamp without time zone`.
 컬럼 주석 4개도 확인했다.
 
-**정리 완료** — throwaway DB 3개 drop, 프로세스 전부 종료(포트 18080~18082 비었음), 임시 사진 폴더 삭제. 남은 DB 는 `challenge` 뿐이다.
+**정리 완료** — throwaway DB 4개 drop, 프로세스 전부 종료, 임시 사진 폴더 삭제.
+남은 DB 는 `challenge` 뿐이다.
+
+V14 적용 로그 실측:
+```
+Migrating schema "public" to version "14 - verification verified at recomment"
+Successfully applied 13 migrations to schema "public", now at version v14
+Started ChallengeServerApplicationKt in 6.538 seconds
+```
+새 주석이 DB 에 실제로 반영된 것도 `col_description()` 으로 확인했다.
 
 ---
 
@@ -441,9 +501,11 @@ mobile-dev 와 pm-lead 둘 다 *"`WireShapeContractTest` 에 `ai_verdict = PASS`
 
 ### 🟡 사용자 관문 — 코드로 해결되지 않는 것
 
-3. **Gemini 유료 티어 키 발급** (ADR-0013 §미해결, 백로그 등재됨). 없으면 `NoOpMissionVerifier`
-   가 선택되어 **이 feature 이전과 동일하게 동작**한다(제출하면 인정). 즉 **기능이 코드상
-   완성이어도 키 없이는 켜지지 않는다.**
+3. **Gemini 유료 티어 키** — 🔵 **사용자가 개인 Google 계정으로 확보했다** (2026-09-22, pm-lead
+   확인). 🔴 **다만 서버 설정 주입은 아직이라 현재도 `NoOpMissionVerifier` 다** — 기능이 코드상
+   완성이어도 **키 주입 전까지는 켜지지 않는다**(제출하면 인정, 즉 이 feature 이전과 동일).
+   🔴 **`Paid` 표시 눈 확인은 여전히 필요하다** — 키를 만들기만 하면 free tier 이고, 그러면
+   ADR §근거 1 의 방어(개인 사진이 학습에 쓰이지 않음)가 통째로 무효다.
    🔴 **키를 만들기만 하면 free tier 다** — 콘솔에서 `Paid` 표시를 눈으로 확인해야 한다.
    그 확인을 건너뛰면 ADR §근거 1 의 방어(개인 사진이 학습에 쓰이지 않음)가 통째로 무효다.
 4. 🔴 **plan Task 4 Step 5 "실호출 1회 + 토큰 실측" 미수행** — 키가 없어 불가능하다.
@@ -474,6 +536,24 @@ mobile-dev 와 pm-lead 둘 다 *"`WireShapeContractTest` 에 `ai_verdict = PASS`
 11. **통합 테스트 부재로 검증되지 않은 것** — 컨테이너 런타임이 없어 `MissionVerificationRunner`
     가 **진짜 JPA 트랜잭션 위에서** 도는 경로는 단위 테스트(in-memory fake)로만 덮여 있다.
     특히 *"AI 호출이 트랜잭션 밖에 있다"* 는 **구조로만 보장**되고(빈 분리) 실측되지 않았다.
+
+### 🔑 이 feature 가 수확한 *"문서가 코드보다 앞섰다"* 2건 — **성격이 다르다**
+
+challenge-forfeit 이 6건을 수확했고 이 feature 에서 2건이 더 나왔다. 🔴 **둘의 성격 차이가
+교훈의 핵심이다**(pm-lead 지적):
+
+| # | 건 | 성격 | 왜 놓쳤나 |
+|---|---|---|---|
+| **7** | `NoOpMissionVerifier` KDoc 이 **없는 게이트**를 있다고 단언 | **처음부터 거짓** — 집행 없는 계약을 문서가 보증했다 | 컴파일·테스트가 초록이라 조용했다. `aiverify-mobile` 이 `V13` 주석에서 역추적해 적발 |
+| **8** | `V9` 의 `verified_at` 주석 *"PENDING/FAILED 면 NULL"* | 🔴 **참이었던 문장이 우리 변경으로 거짓이 됨** | **작성 당시엔 정확했으므로 리뷰에서 안 걸린다.** 규칙을 바꾼 사람이 *"그 규칙의 결과를 근거로 쓴 문장"* 을 따로 훑지 않으면 영구히 남는다 |
+
+🔴 **8번이 더 위험하다.** 7번은 *"단정하지 말고 집행 지점을 가리켜라"* 로 예방되지만, 8번은
+**아무도 틀리지 않은 채로 문서가 썩는다.**
+
+⚠️ **내 누락의 형태를 정확히 적는다**: 나는 계약 §4 에서 낡은 문장 4건을 훑었다 — 그게 바로 이
+작업이었다. **그런데 코드와 계약만 훑고 마이그레이션 주석을 범위에서 빠뜨렸다.** 즉 규칙을 바꿀 때
+훑어야 하는 범위는 *"코드 + 계약"* 이 아니라 **"코드 + 계약 + DB 주석 + KDoc"** 이다.
+DB 컬럼 주석은 **가장 권위 있는 자리**라 거짓이 남으면 되돌림을 유발한다.
 
 ### ⚠️ 설계상 받아들인 것 (버그가 아니다 — 고치지 마라)
 
