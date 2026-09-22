@@ -57,6 +57,8 @@
 - `feature/challenge/detail/.../component/VerificationPhoto.kt` — 🔴 **소거형 게이트** 재배열
 - `.../contract/ChallengeDetailState.kt` — `FAILED -> NONE` 을 사진 유무로 가름
 - `core/ui/.../VerificationStatusPill.kt`
+- 🆕 `feature/challenge/detail/.../component/RejectionReasonText.kt` — **이 feature 의 유일한 신규 파일.**
+  반려 사유 표시 컴포넌트(`medium12` + `onSurfaceVariant`, `maxLines` 없음)
 
 ## 테스트 결과
 
