@@ -63,6 +63,20 @@ billing account  ← 🔑 티어 · 요율 한도 · 지출 캡이 결정되는 
       └ API key  ← 독립 결제 설정이 없다. 프로젝트의 티어·결제 상태를 그대로 상속
 ```
 
+> 🔴 **2026-09-24 정정 — 위 `model` 기본값이 코드와 어긋났다.**
+> 이 절이 `${GEMINI_MODEL:gemini-3.5-flash}` 로 적고 있었으나 구현은 `@Value("${gemini.model:}")`,
+> 즉 **기본값이 빈 문자열**이다(`MissionVerifierConfig.kt:61`). 그리고 게이트가 두 값을 본다:
+> `if (apiKey.isBlank() || model.isBlank()) → NoOpMissionVerifier`.
+>
+> 🔑 **그러므로 키만 넣으면 기능이 켜지지 않는다 — `model` 도 함께 줘야 한다.**
+> ⚠️ ADR 을 읽고 *"모델은 기본값이 있으니 키만 넣으면 된다"* 로 가면 **조용히 NoOp 에 머문다**
+> (제출하면 인정 = 이 feature 이전과 동일). 실제로 사용자가 이 질문을 했고 그때 발견됐다.
+>
+> 🔵 **구현 쪽이 옳다고 본다** — 두 값을 다 요구하는 것은 *"키는 넣었는데 모델을 안 정했다"* 를
+> **명시적 비활성**으로 만든다. 게다가 `MissionVerifierConfig` 가 **어느 쪽이 비었는지 로그로 남긴다**
+> (*"gemini.api-key 설정됨={}, gemini.model='{}'"*) — §결정 4 의 *"조용히 꺼지지 않게 한다"* 와 같은 결이다.
+> 그래서 코드를 ADR 에 맞추지 않고 **ADR 을 코드에 맞춘다.**
+
 🔵 **따라서 같은 billing account 에 붙은 프로젝트는 전부 Paid 다** — 프로젝트를 새로 파도
 결제 설정을 다시 하지 않는다. ⚠️ **거꾸로, 프로젝트를 나눠도 요율 한도·지출 캡은 격리되지
 않는다**(둘 다 billing account 레벨). 프로젝트 분리로 얻는 것은 **비용 가시성과 키 수명**이지
@@ -179,7 +193,7 @@ Gemini 유료 티어는 **선불(Prepay)** 이다(최소 $5, 크레딧 **12개�
 ```yaml
 gemini:
   api-key: ${GEMINI_API_KEY:}      # 없으면 fail-open (§4)
-  model:   ${GEMINI_MODEL:gemini-3.5-flash}      # 2026-09-20 확정. 🔴 Flash-Lite 아님 — §측정 표
+  model:   ${GEMINI_MODEL:}                      # 🔴 기본값 없음 — 아래 정정 참조
   thinking-level: ${GEMINI_THINKING_LEVEL:low}
 ```
 
