@@ -1,6 +1,6 @@
 # ADR-0012: 목록 페이지네이션 — 커서 방식 (`id` 기준)
 
-- **상태**: accepted (2026-09-01)
+- **상태**: accepted (2026-09-01) — 🔴 **부분 대체됨 (2026-10-26, [ADR-0014](./0014-pagination-page-end-flag-and-key-naming.md))**: 필드 이름(`cursor`/`nextCursor` → `nextNotificationId`)과 §근거 3(`hasNext` 불리언 금지)만. 나머지는 유효
 - **결정자**: pm-lead (backend-dev 제안·구현·검증)
 - **최초 적용**: [notification-list](../features/notification-list/api-contract.md) — `GET /api/v1/notifications`
 - **관련**: [ADR-0010](./0010-datetime-model-localdatetime.md)(시간 규약 — **이 ADR 이 `created_at` 을 정렬 축에서 배제하는 근거와 맞물린다**) · [ADR-0007](./0007-environment-split.md)(배포 — 다중 인스턴스 시점)
@@ -53,6 +53,8 @@ change 다.** 페이지네이션은 **계약**이라 되돌리는 비용이 크�
 
 ### 1. 커서 페이지네이션. shape 은 이것으로 고정한다
 
+> 🔴 **[ADR-0014] 아래 필드 이름과 `hasNext` 금지 행은 폐기됐다.** 현행: `?next{Entity}Id=` + `data.next{Entity}Id` + `data.isPageEnd`.
+
 ```
 GET /api/v1/{resource}?cursor={마지막 항목의 키}&size={N}
 ```
@@ -65,7 +67,7 @@ GET /api/v1/{resource}?cursor={마지막 항목의 키}&size={N}
 |---|---|
 | `cursor` | optional. **생략 = 첫 페이지.** 앱은 직전 응답의 `nextCursor` 를 **그대로 되돌려 보낸다** |
 | `size` | optional. 기본값·상한을 각 계약이 정한다. 🔴 **범위 밖은 clamp 하지 말고 `code 700` 으로 거부** |
-| `nextCursor` | **nullable 절대값.** `null` = 끝. 🔴 **`hasNext` 불리언 금지** |
+| `nextCursor` | ~~**nullable 절대값.** `null` = 끝. 🔴 **`hasNext` 불리언 금지**~~ 🔴 **[ADR-0014 폐기]** → `next{Entity}Id` + `isPageEnd` |
 | 정렬·커서 키 | **동일해야 한다.** 기본은 **`id DESC`** |
 | 총 개수 | **주지 않는다.** `COUNT` 쿼리를 걸지 않는다 |
 
@@ -134,6 +136,8 @@ LIMIT :size + 1
 순서의 신뢰성에 대한 것이 아니다.**
 
 ### 근거 3 — `nextCursor` 절대값. `hasNext` 불리언을 쓰지 않는다
+
+> 🔴 **[ADR-0014 폐기 — 2026-10-26 사용자 결정으로 `isPageEnd` 불리언 허용.]** 단 *"앱은 마지막 항목 id 를 스스로 꺼내 쓰지 않는다"* 는 이 절의 핵심은 ADR-0014 §2 가 유지한다.
 
 [mypage §1](../features/mypage/api-contract.md) 이 `hasPrevious`/`hasNext` 를 기각하고 절대값
 (`firstArchivedMonth`)으로 간 선례를 그대로 잇는다. 여기서는 논거가 더 직접적이다 —

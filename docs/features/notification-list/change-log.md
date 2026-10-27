@@ -7,6 +7,52 @@
 
 ---
 
+## 2026-10-26 — 🔴 **v3 개정: 페이지 끝 신호 + 키 이름 변경** (backend-dev) — 🔴 **BREAKING CHANGE**
+
+근거: [ADR-0014](../../decisions/0014-pagination-page-end-flag-and-key-naming.md) (accepted 2026-10-26, 사용자 결정 —
+모바일 Notification 모듈 리팩토링 중 *"`isPageEnd` 로 받고 싶다"*, *"`cursor` 라는 이름을 쓰지 않는다"*).
+ADR-0012 는 **필드 이름 + `hasNext` 금지만** 부분 대체 — 정렬 `id DESC` · 비소비 · `size` 1..50 밖 code 700 ·
+빈 문자열 = 미지정은 그대로다.
+
+| | |
+|---|---|
+| **이름·경계 변경 (요청)** | `?cursor=` → **`?nextNotificationId=`** — 🔴 **포함 경계 `id <=`** (v2 는 배타 `<`). 정수 아님 → code 700 메시지 동일 |
+| **이름·값 변경 (응답)** | `data.nextCursor`(이번 페이지 **마지막** id) → **`data.nextNotificationId`** = 🔴 **다음 페이지 첫 항목의 id**(`size + 1` 조회의 초과분). `Long?`, 키 항상 실림 |
+| **추가** | **`data.isPageEnd: Boolean`** (non-null) |
+| **삭제** | `data.nextCursor` 키 — 응답에 **없다**(테스트로 부재 고정) |
+| **호환** | 🔴 **breaking.** v2 앱은 `nextCursor` 키 부재로 역직렬화 실패하거나, `?cursor=` 가 **무시돼 첫 페이지를 반복**한다(실측, 에러 코드 없음). **앱·서버 동시 반영 필수** — 출시 전이라 허용(ADR-0014) |
+
+### 🔴 끝 신호가 둘이 됐다 — 한 출처 + 불변식 테스트로 막는다 (§10.2)
+
+`isPageEnd == (nextNotificationId == null)`. 서버의 `NotificationPage.isPageEnd` 는 생성자 인자가 아니라
+`nextNotificationId` 에서 **파생되는 계산 프로퍼티**라 어긋난 조합을 만들 수 없고, 두 값의 출처는 `size + 1`
+조회의 초과분 유무 하나다. 서비스 테스트가 끝까지 걸으며 매 페이지(중간·끝·0건) 단언, 컨트롤러 테스트가 wire
+원문으로 세 경우를 고정. **뮤테이션 모두 빨개짐 확인 후 되돌림**: 값을 구 의미(마지막 id)로 → 끝까지 걷기가
+경계 항목 **중복**으로 실패 / `isPageEnd` 반전 → 서비스 6 + 컨트롤러 3 실패 / (1차안 때) 컨트롤러 상수 박기 → 2 실패.
+🔴 **경계 뮤테이션(JPQL `<=` → `<`)은 단위 테스트가 못 잡는다** (711 중 661 passed, 0 failures — JPA 제외 + fake 가 규칙을
+재구현). **실구동에서만 잡혔다**: `size=3` 완주가 `[7,6,5] → [3,2,1]` 로 id 4 가 조용히 누락. 이 경계의 자동 방어는 현재 없으며
+JPQL 을 건드리면 실구동 재검증이 필수다(계약 §10.2).
+
+### 🔴 같은 날 1차안을 교체했다 — 이름만 바꾸면 경계를 오독한다
+
+처음엔 `last…` 이름(값 = 이번 페이지 마지막 id, 배타 경계)으로 구현·문서화했다. 사용자가 `next…` 이름을 택했고,
+**값을 그대로 둔 채 이름만 바꾸면** *"다음 페이지 첫 항목"* 으로 읽혀 1건 누락·중복을 부른다(ADR-0014 §3). 그래서
+**값(초과분 id)과 요청 조건(`<=`)을 이름에 맞춰 바꿨다.** 초과분 1건이 정확히 그 항목이라 추가 쿼리는 없다.
+1차안은 앱에 나간 적 없다.
+
+### 서버 코드 — `cursor` 네이밍 정리 (알림 맥락만)
+
+컨트롤러 파라미터·`parseNextNotificationId` · `NotificationQueryService.getNotifications(nextNotificationId)` ·
+`NotificationRepository.findPageByUserId(nextNotificationId)` · JPQL `findPageByUserIdFrom` (`n.id <= :nextNotificationId`) · DTO · 테스트 이름.
+다른 기능 코드는 무변경(같은 인터페이스를 구현하는 테스트 fake 3곳의 **파라미터 이름만** 맞춤).
+
+### 검증
+
+- 단위: **711 중 661 passed / 50 skipped(기존 컨테이너 블로커) / failures 0**
+- 실구동: throwaway DB + `:8089` — 19항목 ✅ (size 1/2/3/6/7 완주 중복 0·누락 0, 경계 항목 삭제 후에도 이어짐) ([§8.2](./api-contract.md)). 공용 `challenge` DB·`:8080` 불가침, 정리 확인.
+
+---
+
 ## 2026-09-01 — 🔴 **v2 개정: `referencePending` 필드 추가** (backend-dev) — **shape 변경**
 
 **사용자 실사용 피드백**: *"알림 화면에서 이동하니까 이미 지난 챌린지도 이동이 되어서 어색하다."*

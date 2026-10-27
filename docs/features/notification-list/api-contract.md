@@ -1,9 +1,10 @@
 # API Contract — 알림 목록 (notification-list)
 
 - **feature-id**: notification-list
-- **상태**: ✅ **`confirmed`** — 🔴 **v2 (2026-09-01 2차 개정)** 가 현행. 응답에 **`referencePending` 1필드 추가**
-  ([§9](#9--referencepending--2차-개정-2026-09-01), spec 2차 개정 §2). 나머지 shape 은 v1 그대로다.
-  §4 읽음 처리는 **(B) 확정**(pm 판정). 전 엔드포인트 **실구동 검증 완료**(§8).
+- **상태**: ✅ **`confirmed`** — 🔴 **v3 (2026-10-26 3차 개정, breaking)** 가 현행.
+  **페이지 shape 변경** — 요청 `cursor` → **`nextNotificationId`**(🔴 **포함 경계** `id <=`), 응답 `nextCursor` → **`nextNotificationId`**
+  (🔴 값 = **다음 페이지 첫 항목의 id**), 응답에 **`isPageEnd`** 추가 ([§10](#10--페이지-끝-신호와-키-이름--3차-개정-2026-10-26-breaking), [ADR-0014](../../decisions/0014-pagination-page-end-flag-and-key-naming.md)).
+  v2(2026-09-01)의 `referencePending`(§9)·§4 읽음 처리 (B) 는 그대로다. v3 **실구동 검증 완료**(§8.2).
   변경 이력은 [change-log.md](./change-log.md).
 - **소유**: backend-dev (noti-backend)
 - **작성**: 2026-09-01 backend-dev
@@ -31,22 +32,22 @@
 ### 요청
 
 ```
-GET /api/v1/notifications                      # 🔴 첫 호출은 파라미터 없이
-GET /api/v1/notifications?cursor=57&size=20    # 다음 페이지
+GET /api/v1/notifications                                  # 🔴 첫 호출은 파라미터 없이
+GET /api/v1/notifications?nextNotificationId=38&size=20    # 다음 페이지 (v3) — id 38 포함 이하
 Authorization: Bearer {accessToken}
 ```
 
 | 이름 | 타입 | 필수 | 기본값 | 설명 |
 |---|---|---|---|---|
-| `cursor` | long | ✗ | 없음(= 맨 앞) | **직전 응답의 `nextCursor` 를 그대로 되돌려 보낸다.** 이 값보다 `id` 가 작은 것부터 |
+| `nextNotificationId` | long | ✗ | 없음(= 맨 앞) | **직전 응답의 `nextNotificationId` 를 그대로 되돌려 보낸다.** 🔴 **이 `id` 를 포함해** 그 이하부터(`id <= :nextNotificationId`). v3 — v2 의 `cursor`(배타 경계 `<`)를 대체(§10). **`?cursor=` 는 더 이상 읽지 않는다** — 보내면 무시되고 첫 페이지가 온다 |
 | `size` | int | ✗ | **20** | 한 번에 받을 개수. `1..50` |
 
-🔴 **첫 호출이 파라미터 없이 성립하는 것이 설계다.** 앱은 커서를 **만들지 않는다** — 서버가 준
+🔴 **첫 호출이 파라미터 없이 성립하는 것이 설계다.** 앱은 `nextNotificationId` 를 **만들지 않는다** — 목록 마지막 항목의 id 를 꺼내 쓰지 않고 서버가 준
 값을 되돌려 보내기만 한다. 보관함 `?month=` 가 optional 인 것과 같은 판단이며
 ([mypage §1](../mypage/api-contract.md)), 클라이언트가 경계값을 스스로 계산하지 않게 하는 것이
 이 프로젝트의 반복 규약이다.
 
-`?cursor=` / `?size=` 가 **빈 문자열**이면 미지정과 같이 다룬다 (보관함 `?month=` 와 동일).
+`?nextNotificationId=` / `?size=` 가 **빈 문자열**이면 미지정과 같이 다룬다 (보관함 `?month=` 와 동일).
 
 ### 응답 — 성공
 
@@ -72,7 +73,8 @@ Authorization: Bearer {accessToken}
         "createdAt": "2026-09-01 13:40:11"
       }
     ],
-    "nextCursor": 38
+    "nextNotificationId": 55,
+    "isPageEnd": false
   }
 }
 ```
@@ -80,7 +82,11 @@ Authorization: Bearer {accessToken}
 | 필드 | 타입 | null | 설명 |
 |---|---|---|---|
 | `notifications` | array | non-null (**빌 수 있다**) | `id` 내림차순 = 최신순 |
-| `nextCursor` | long | 🔴 **nullable** | 다음 페이지의 `cursor`. **`null` 이면 끝이다** |
+| `nextNotificationId` | long | 🔴 **nullable** | 🔴 **다음 페이지 첫 항목의 id** — `size + 1` 조회에서 잘라 낸 초과분 1건의 id. 이 페이지 마지막 항목의 id(위 예시 56)가 **아니다**. 다음 요청의 `?nextNotificationId=` 에 **그대로** 싣는다. **`isPageEnd == true` 이면 `null`** (v3, §10) |
+| `isPageEnd` | boolean | non-null | 더 가져올 페이지가 없으면 `true`. **멈출지 판단은 이 값으로** 한다 (v3, §10) |
+
+🔴 **불변식 `isPageEnd == (nextNotificationId == null)`** — 끝·중간·0건 모두. 서버는 두 값을 `size + 1`
+조회의 초과분 유무 **한 출처**에서 만들고 테스트로 고정한다(§10.2).
 
 #### `notifications[]` 항목
 
@@ -96,7 +102,7 @@ Authorization: Bearer {accessToken}
 🔴 **`title` 과 `isRead` 는 의도적으로 없다.** 둘 다 서버 테스트가 `doesNotExist()` 로 고정한다.
 근거는 각각 아래 §1.1 과 §4.
 
-⚠️ **`nextCursor` / `referenceId` / `referencePending` 이 `null` 이어도 키는 항상 실린다** — 이
+⚠️ **`nextNotificationId` / `referenceId` / `referencePending` 이 `null` 이어도 키는 항상 실린다** — 이
 프로젝트 Jackson 에 `@JsonInclude(NON_NULL)` 설정이 없다(mypage `WireShapeContractTest` 실측분).
 모바일은 키 존재를 전제해도 된다.
 
@@ -134,15 +140,15 @@ design 이 **실측 4종을 놓고** 판정했다([design.md §3.3](./design.md)
 | code | HTTP | 상황 | message |
 |---|---|---|---|
 | 700 | 200 | `size` 가 정수가 아니거나 `1..50` 밖 | `한 번에 받을 개수가 올바르지 않아요` |
-| 700 | 200 | `cursor` 가 정수가 아님 | `목록 위치가 올바르지 않아요` |
+| 700 | 200 | `nextNotificationId` 가 정수가 아님 (v3 — v2 의 `cursor` 에서 이름만 바뀜, 메시지 동일) | `목록 위치가 올바르지 않아요` |
 | 401 | **401** | access 만료 | ADR-0009 — Ktor Auth 가 자동 갱신 후 재시도 |
 
 🔴 **`size` 범위를 벗어나면 clamp 하지 않고 거부한다.** 조용히 50 으로 깎으면 앱은 100 개를
-받았다고 믿고 커서를 잘못 이어 붙인다. 보관함이 미래 달을 clamp 하지 않고 code 700 으로 끊는
+받았다고 믿고 다음 페이지를 잘못 이어 붙인다. 보관함이 미래 달을 clamp 하지 않고 code 700 으로 끊는
 것과 같은 판단이다(*"조용히 clamp 하면 응답의 에코가 요청과 달라져 화면에서 어긋난다"*).
 
-⚠️ **`cursor` 가 존재하지 않는 id 여도 에러가 아니다.** `id < cursor` 조건이라 그냥 그보다
-작은 것들이 나온다. 삭제된 알림을 커서로 들고 있어도 목록이 이어진다 — 이게 커서를
+⚠️ **`nextNotificationId` 가 존재하지 않는 id 여도 에러가 아니다.** `id <= nextNotificationId` 조건이라
+그 이하가 나온다. 그 항목이 사이에 삭제돼도 목록이 이어진다(§8.2 실측) — 이게 기준 키를
 `id` 로 잡은 부수 효과다.
 
 ---
@@ -150,7 +156,7 @@ design 이 **실측 4종을 놓고** 판정했다([design.md §3.3](./design.md)
 ## 2. 🔴 페이지네이션 도입 — **이 프로젝트 최초다. 근거를 남긴다**
 
 > 🔵 **이 절은 [ADR-0012](../../decisions/0012-list-pagination-cursor.md) 로 승격됐다**(2026-09-01).
-> **프로젝트 규약은 ADR 이 정본**이고 이 절은 알림에 적용한 구체 근거로 남는다 — 다른 목록에
+> **프로젝트 규약은 ADR 이 정본**이고(🔴 2026-10-26 부터 필드 이름·끝 신호는 [ADR-0014](../../decisions/0014-pagination-page-end-flag-and-key-naming.md) 가 부분 대체) 이 절은 알림에 적용한 구체 근거로 남는다 — 다른 목록에
 > 적용할 때는 ADR 을 봐라. CLAUDE.md 규칙 줄도 같은 결정을 가리킨다.
 
 ### 왜 여기서 도입하나
@@ -188,7 +194,7 @@ design 이 **실측 4종을 놓고** 판정했다([design.md §3.3](./design.md)
 ### 정렬·커서 키가 **둘 다 `id`** 인 이유 — `created_at` 이 아니다
 
 ```sql
-WHERE user_id = :me AND (:cursor IS NULL OR id < :cursor)
+WHERE user_id = :me AND (:nextNotificationId IS NULL OR id <= :nextNotificationId)   -- v3 (포함 경계). 실제로는 null 분기를 메서드 2개로 나눴다
 ORDER BY id DESC
 LIMIT :size + 1
 ```
@@ -206,18 +212,23 @@ LIMIT :size + 1
   복합 커서(`(createdAt, id)`)가 필요해지는데, `id` 단독은 그 표면이 아예 없다.
 - 보관함이 `ORDER BY challengeDate DESC, c.id DESC` 로 `id` 를 tiebreak 에 쓰는 것과 같은 결이다.
 
-### `nextCursor: Long?` — 불리언 `hasNext` 를 쓰지 않는다
+### ~~`nextCursor: Long?` — 불리언 `hasNext` 를 쓰지 않는다~~ — 🔴 **v3 에서 부분 대체됨(ADR-0014)**
 
-[mypage §1](../mypage/api-contract.md) 이 `hasPrevious`/`hasNext` 를 기각하고 절대값
+> 🔴 **2026-10-26 폐기 표시 — 이 절의 "불리언을 쓰지 않는다" 와 필드 이름 `nextCursor` 는 더 이상 유효하지 않다.**
+> 현행은 `nextNotificationId: Long?` + `isPageEnd: Boolean`(§10, [ADR-0014](../../decisions/0014-pagination-page-end-flag-and-key-naming.md)).
+> **유효하게 남는 것**: 앱이 *"마지막 항목의 id 를 꺼내 쓰는"* 규칙의 사본을 갖지 않는다 — 다음 요청 값은 서버가 준
+> `nextNotificationId` 를 그대로 쓴다. 아래 원문은 v2 근거 기록이다.
+
+🔴 (v2 근거 기록 — v3 에서 불리언 금지 부분은 폐기, 위 인용 참조) [mypage §1](../mypage/api-contract.md) 이 `hasPrevious`/`hasNext` 를 기각하고 절대값
 (`firstArchivedMonth`)으로 간 선례를 그대로 따른다. 여기서는 그 논거가 더 직접적이다 —
 **`nextCursor` 는 앱이 다음 요청에 그대로 실어야 하는 값 자체**다. 불리언을 주면 앱이
 *"마지막 항목의 `notificationId` 를 커서로 쓴다"* 는 **규칙의 사본**을 갖게 되고, 나중에 서버가
 커서 표현을 바꾸면 그 사본이 조용히 틀린다. 절대값은 앱에 규칙을 두지 않는다.
 
-`null` 하나가 *"끝"* 을 뜻하므로 경쟁하는 신호도 없다.
+🔴 v3 폐기: ~~`null` 하나가 *"끝"* 을 뜻하므로 경쟁하는 신호도 없다.~~ — v3 는 끝 신호가 둘(`isPageEnd`·`null`)이며, 불변식 테스트가 경쟁을 막는다(§10.2).
 
-> **서버 구현**: `size + 1` 건을 읽어 초과분이 있으면 잘라 내고 마지막 항목의 `id` 를
-> `nextCursor` 로, 없으면 `null`. **`COUNT` 쿼리를 걸지 않는다.**
+> **서버 구현** (v3 로 갱신): `size + 1` 건을 읽어 초과분이 있으면 잘라 내고 🔴 **그 초과분의 `id`** 를
+> `nextNotificationId` 로(`isPageEnd=false`), 없으면 `null`(`isPageEnd=true`). **`COUNT` 쿼리를 걸지 않는다.**
 
 ### 🔴 이 shape 이 프로젝트 페이지네이션 규약이 된다
 
@@ -225,8 +236,10 @@ CLAUDE.md: *"페이지네이션은 프로젝트 전체에서 한 방식으로 �
 
 **기존 6종을 지금 따라 고치지 않는다** — 보관함은 월이 이미 경계이고, 홈 진행중·받은 도전장은
 설계상 한정이며, 친구·받은 요청·랭킹은 백로그가 말한 *"수백 건 도달"* 신호가 아직 없다.
-다만 **다음에 도입하는 쪽은 이 shape 을 따른다**: `?cursor=&size=` +
-`data.nextCursor: <키>?`, 정렬·커서 키 동일, 불리언 금지.
+🔴 v3 폐기(ADR-0014): ~~다만 **다음에 도입하는 쪽은 이 shape 을 따른다**: `?cursor=&size=` +
+`data.nextCursor: <키>?`, 정렬·커서 키 동일, 불리언 금지.~~
+**현행 규칙**: 다음에 도입하는 쪽은 `?next{Entity}Id=&size=` + `data.next{Entity}Id: <키>?`(다음 페이지 첫 항목, 포함 경계) + `data.isPageEnd: Boolean`,
+정렬·기준 키 동일([ADR-0014 §3](../../decisions/0014-pagination-page-end-flag-and-key-naming.md)).
 
 > 🔴 **2026-09-01 정정 — 이 문단이 처음에 "나머지 4종(친구 목록·받은 요청·랭킹·보관함)"이라고
 > 적었다. 오답이다.** `GET /challenges/active` 와 `GET /challenges/received` 를 빠뜨렸고, 실측
@@ -435,15 +448,15 @@ spec 수용 기준의 *"모르는 타입이 와도 목록이 깨지지 않아야
 🔵 **`body` 를 박제로 저장한 결정(push-fcm 오픈이슈 2)이 여기서 값을 한다** — 앱이 타입별로
 문구를 조립하는 구조였다면 모르는 타입은 **그릴 문구조차 없었다.**
 
-### 커서는 **소비되지 않는다** — 재시도는 같은 값으로 다시 부르면 된다
+### `nextNotificationId` 는 **소비되지 않는다** — 재시도는 같은 값으로 다시 부르면 된다
 
-design §6.3 이 물은 것에 답한다. `cursor` 는 서버가 상태로 들고 있는 토큰이 아니라 **`id` 비교
-값**이다(`WHERE id < :cursor`). 그래서:
+design §6.3 이 물은 것에 답한다. `nextNotificationId`(v2 의 `cursor`)는 서버가 상태로 들고 있는 토큰이 아니라 **`id` 비교
+값**이다(`WHERE id <= :nextNotificationId`). 그래서:
 
-- **같은 커서를 몇 번을 보내도 같은 페이지**가 온다. 부분 실패 후 *"다시 시도"* 를 **같은
-  커서로** 부르는 설계가 그대로 성립한다.
-- **없는 `id` 를 커서로 보내도 에러가 아니다** — 그보다 작은 것들이 온다(실측: `cursor=99999`
-  → 200). 그 사이에 알림이 삭제돼도 목록이 이어진다.
+- **같은 값을 몇 번을 보내도 같은 페이지**가 온다. 부분 실패 후 *"다시 시도"* 를 **같은
+  값으로** 부르는 설계가 그대로 성립한다(v3 실측: `nextNotificationId=4` 2회 → 둘 다 `[4,3,2]`).
+- **없는 `id` 를 보내도 에러가 아니다** — 그 이하가 온다(실측: v2 `cursor=99999`, v3
+  `nextNotificationId=99999` → 200, 삭제된 경계 항목 id 도 → 200). 그 사이에 알림이 삭제돼도 목록이 이어진다.
 - 만료도 없다.
 
 ### 🔴 서버 쪽 알려진 한계 — **실측으로 확인했다.** 숨기지 않고 적는다
@@ -526,6 +539,9 @@ push-deeplink 가 `PushEvent → Route` 매핑을 `:feature:main` 의 `toRoute()
 
 ## 8. ✅ 실구동 검증 — **단위 테스트가 못 덮는 축**
 
+> ⚠️ **아래 표(§8 본표 · §8.1)는 v1/v2 시점(2026-09-01) 기록이다.** 표 안의 `cursor` / `nextCursor` 는 당시
+> 파라미터·필드 이름이며 **v3 에서 폐기됐다.** v3 shape 의 실구동 결과는 **§8.2** 가 정본이다.
+
 이 레포의 단위 테스트는 **JPA 를 auto-configuration 에서 제외하고 repository 를 mock 으로**
 세운다. 즉 **통과한 539건 중 어느 것도 새 JPQL 을 실제 DB 에 대고 실행하지 않는다.**
 Testcontainers 통합 테스트 49건은 컨테이너 런타임 부재로 상시 skip 이다.
@@ -541,17 +557,17 @@ Testcontainers 통합 테스트 49건은 컨테이너 런타임 부재로 상시
 | 1 | Flyway V1→V11 적용 + `ddl-auto=validate` + 새 JPQL 5개 파싱 | ✅ 기동 성공 |
 | 2 | 🔴 **정렬 축이 `id` 다** — `created_at` 이면 순서가 `7,6,5,4,2,1,3` 이어야 하는데 실제는 `7,6,5,4,3,2,1` | ✅ **id DESC 확인** |
 | 3 | 커서 페이징 `size=3` 으로 끝까지 (3페이지) — **중복 0 / 누락 0** | ✅ `[7,6,5]→[4,3,2]→[1]` |
-| 4 | 마지막 페이지에서 `nextCursor: null` | ✅ |
+| 4 | 마지막 페이지에서 `nextCursor: null` (v2 이름 — v3 는 §8.2) | ✅ |
 | 5 | 사용자 격리 — user2 의 id 8,9 가 새지 않음 | ✅ |
 | 6 | `referenceId: null` 이어도 **키가 실린다** (id=6 `FRIEND_REQUEST`) | ✅ 원문 확인 |
 | 7 | `isRead` · `title` **부재** — 항목 필드가 정확히 **5개** | ✅ `[body, createdAt, notificationId, referenceId, type]` |
 | 8 | 시간 포맷 `yyyy-MM-dd HH:mm:ss` — `T`·`Z` 없음 (ADR-0010) | ✅ |
 | 9 | 🔴 **enum 밖 문자열(`SOME_FUTURE_TYPE`) → `CHALLENGE_REQUEST` 오분류** | ⚠️ **재현됨** — §5 한계 |
 | 10 | `FRIEND_REQUEST`(enum 선언분)는 정확히 round-trip | ✅ |
-| 11 | `?size=0` / `51` / `abc` / `?cursor=abc` → HTTP 200 + `code=700` + **`data` 키 없음** | ✅ 4/4 |
-| 12 | `?size=&cursor=`(빈 문자열) = 미지정 | ✅ 200, 7건 |
-| 13 | 존재하지 않는 `cursor=99999` 는 **에러가 아니다** | ✅ 200 |
-| 14 | 알림 0건 사용자 → `[]` + `nextCursor: null` | ✅ |
+| 11 | `?size=0` / `51` / `abc` / `?cursor=abc`(v2 이름) → HTTP 200 + `code=700` + **`data` 키 없음** | ✅ 4/4 |
+| 12 | `?size=&cursor=`(빈 문자열, v2 이름) = 미지정 | ✅ 200, 7건 |
+| 13 | 존재하지 않는 `cursor=99999`(v2 이름) 는 **에러가 아니다** | ✅ 200 |
+| 14 | 알림 0건 사용자 → `[]` + `nextCursor: null` (v2 이름) | ✅ |
 | 15 | `unread-count` 초기값 | ✅ 7 |
 | 16 | `read-all` → `unreadCount: 0`, **DB 실반영** | ✅ user1 read=7/unread=0 |
 | 17 | 🔴 `read-all` 이 **user2 의 2건을 건드리지 않는다** | ✅ user2 unread=2 유지 |
@@ -590,6 +606,38 @@ Testcontainers 통합 테스트 49건은 컨테이너 런타임 부재로 상시
 > ⚠️ **2회 돌렸다.** 1회차는 `title` 제거 **전** 빌드였고, §1.1 로 shape 이 바뀌었으므로
 > **최종 빌드로 전량 재실행**했다. 위 표는 재실행분이다 — 낡은 shape 에 대한 검증을 근거로
 > 남기지 않기 위해서다.
+
+### 8.2 🔴 v3 실구동 (2026-10-26) — `nextNotificationId`(포함 경계) / `isPageEnd`
+
+throwaway DB `challenge_noti_v3d_verify` + 포트 **8089**, 최종 빌드 jar (경계 뮤테이션 복원 후 재빌드분으로 전량 재실행). 🔴 **공용 `challenge` DB 와 `:8080` 불가침** —
+종료 후 DB drop · 8089 리스너 0 · 공용 `notifications` 26행 그대로 · `:8080` 정상 응답(401) 확인.
+시드: user1 알림 7건(id 1~7, 🔴 **id=3 의 `created_at` 을 가장 오래되게** 넣어 두 축을 가름) + user2 2건 + 0건 user3.
+
+| # | 검증 | 결과 |
+|---|---|---|
+| 1 | Flyway V1→V14 + `ddl-auto=validate` + JPQL(`n.id <= :nextNotificationId`) 파싱 | ✅ 기동 성공 |
+| 2 | `?nextNotificationId=&size=3` 부터 받은 값을 되돌려 보내며 완주 | ✅ `[7,6,5]→[4,3,2]→[1]` — **중복 0 / 누락 0** |
+| 3 | 🔴 **경계 항목이 두 번 나오지 않는다** — 응답 값 4·1 이 각각 **다음 페이지 첫 항목**으로 정확히 1회 | ✅ |
+| 4 | 같은 완주를 `size` 1 / 2 / 6 / 7 로 | ✅ 전부 중복 0 / 누락 0 (`size=7` 은 한 페이지 + `isPageEnd:true`) |
+| 5 | 정렬 축 `id DESC` (`created_at` 이면 3 이 맨 끝) | ✅ |
+| 6 | 중간 페이지 | ✅ `nextNotificationId: 4, isPageEnd: false` / `1, false` |
+| 7 | 마지막 페이지 | ✅ `nextNotificationId: null, isPageEnd: true` — **키 둘 다 존재** |
+| 8 | 불변식 `isPageEnd == (nextNotificationId == null)` 전 응답 | ✅ 예외 0 |
+| 9 | 0건 사용자 | ✅ `[]` + `null` + `true` |
+| 10 | `?nextNotificationId=abc` | ✅ HTTP 200 + `code=700` `목록 위치가 올바르지 않아요` + `data` 키 없음 |
+| 11 | `?nextNotificationId=&size=` (빈 문자열) = 미지정 | ✅ 200, 7건, `isPageEnd: true` |
+| 12 | `?size=0` / `51` | ✅ code 700 (기존 규약 유지) |
+| 13 | 없는 id `nextNotificationId=99999` | ✅ 200 (에러 아님) |
+| 14 | 🔴 **경계 항목 삭제 후** `nextNotificationId=4` (id 4 를 DB 에서 지움) | ✅ 200, `[3,2,1]` — 포함 경계라 그 이하가 이어진다 |
+| 15 | 같은 값 재요청(`=4` ×2) | ✅ 둘 다 `[4,3,2]` — 소비되지 않음 |
+| 16 | 사용자 격리(user2) | ✅ `[9,8]` 만 |
+| 17 | 무인증 | ✅ HTTP 401 |
+| 18 | OpenAPI `NotificationListData` | ✅ props `[isPageEnd, nextNotificationId, notifications]`, required `[isPageEnd, notifications]`, 파라미터 `[nextNotificationId, size]` |
+| 19 | ⚠️ **구 파라미터 `?cursor=5`** | **무시되고 첫 페이지**(`[7,6,5]`)가 온다 — 아래 주의 |
+
+⚠️ **19번이 breaking 의 실제 모습이다.** v2 앱이 v3 서버에 붙으면 (a) 응답에 `nextCursor` 키가 없어 역직렬화가
+실패하거나(`MissingFieldException`), (b) 기본값으로 넘겼다면 `?cursor=` 가 무시돼 **첫 페이지를 반복**한다. 둘 다
+에러 코드 없이 일어난다. 그래서 **앱·서버 동시 반영**이다(ADR-0014 §결과, 출시 전이라 허용).
 
 ---
 
@@ -737,6 +785,58 @@ pm 이 N+1 을 우려한 자리다. 행마다 챌린지를 조회하면 페이�
 
 ---
 
+## 10. 🔴 페이지 끝 신호와 키 이름 — 3차 개정 (2026-10-26, **breaking**)
+
+근거: [ADR-0014](../../decisions/0014-pagination-page-end-flag-and-key-naming.md) (accepted 2026-10-26, 사용자 결정).
+ADR-0012 는 **필드 이름 + `hasNext` 금지만** 대체됐다 — 커서 방식 · `id DESC` · 비소비 · `size` 범위 밖 code 700 ·
+빈 문자열 = 미지정 · COUNT 미사용은 그대로다.
+
+### 10.1 변경 내용
+
+| | v2 | **v3** |
+|---|---|---|
+| 요청 파라미터 | `cursor` — `id < :cursor` (배타) | **`nextNotificationId`** — 🔴 **`id <= :nextNotificationId` (포함 경계)** |
+| 응답 다음 값 | `data.nextCursor: Long?` = 이번 페이지 **마지막** 항목의 id | **`data.nextNotificationId: Long?`** = 🔴 **다음 페이지 첫 항목**의 id(`size + 1` 조회의 초과분). 키 항상 실림 |
+| 응답 끝 신호 | (`nextCursor == null`) | **`data.isPageEnd: Boolean`** non-null 신규 |
+| 정수 아님 에러 | `cursor=abc` → 700 | `nextNotificationId=abc` → 700, **메시지 동일** |
+
+🔴 **이름과 값이 함께 바뀌었다.** 값을 그대로 두고 이름만 `next…` 로 바꾸면 *"다음 페이지 첫 항목의 id"* 로 읽혀
+경계를 오독한다(ADR-0014 §3). 그래서 값(초과분 id)과 요청 조건(`<=`)을 이름에 맞췄다 — 초과분 1건이 정확히 그
+항목이라 **추가 쿼리는 없다.**
+
+### 10.2 🔴 두 끝 신호는 **한 출처**다 — 불변식 `isPageEnd == (nextNotificationId == null)`
+
+서버는 `size + 1` 조회의 초과분 유무(`hasMore`) 하나에서 `nextNotificationId`(= 초과분 `rows[size]` 의 id)를 만들고,
+**`isPageEnd` 는 그 값에서 파생**한다(`NotificationPage.isPageEnd` 는 생성자 인자가 아니라 `nextNotificationId == null`
+계산 프로퍼티 — 어긋난 조합을 **만들 수 없다**). 컨트롤러 DTO 는 둘을 옮기기만 한다.
+
+| 고정 장치 | 경우 |
+|---|---|
+| `NotificationQueryServiceTest` — 0건 / size 미만 / 정확히 size / size 초과(값 = 초과분 id) / **포함 경계**(보낸 id 가 첫 행) + **끝까지 걷기**(매 페이지 불변식 + 중복 0 / 누락 0) | 끝·중간·0건 |
+| `NotificationControllerTest` — wire 원문으로 중간(`false`+값) / 끝(`true`+`null`) / 0건(`true`), `nextCursor` 키 부재, `is` 접두 탈락(`pageEnd`) 부재 | 끝·중간·0건 |
+
+🔵 **뮤테이션으로 확인했다** (전부 되돌림):
+1. 서비스가 값을 **이번 페이지 마지막 id**(구 의미)로 냄 → 서비스 3건 실패 — 끝까지 걷기가 **경계 항목 중복**으로 깨진다.
+2. 서비스 `isPageEnd` 반전 → 서비스 6건 + 컨트롤러 3건 실패.
+
+3. 🔴 **경계 뮤테이션 — JPQL 을 `<` 로 되돌림.** **단위 테스트: 711 중 661 passed / 0 failures — 못 잡았다**(뮤턴트가
+   `:infra:jpa:compileKotlin` 으로 실제 컴파일됐는데도 초록). **실구동: 잡았다** — `size=3` 완주가
+   `[7,6,5] → [3,2,1]` 로 **id 4 가 예외·로그 없이 사라지고** `isPageEnd:true` 로 정상 종료한다.
+
+⚠️ **그러므로 포함 경계의 유일한 자동 방어는 없다** — 단위 테스트의 저장소 fake 는 `<=` 를 **다시 구현**한 것이라 JPQL 을
+증명하지 못하고(JPA 제외), JPQL 을 실제로 타는 `NotificationReferencePendingIntegrationTest` 류 통합 테스트는 컨테이너 부재로
+상시 skip 이다. **JPQL 경계를 고치는 사람은 §8.2 실구동(2~4, 14)을 반드시 다시 돌려야 한다.** 컨테이너가 설치되면 완주
+통합 테스트를 추가할 자리다(백로그 후보).
+
+### 10.3 클라이언트 역할 분담 (ADR-0014 §2)
+
+- **멈출지 판단은 `isPageEnd`.**
+- **다음 요청 값은 응답의 `nextNotificationId` 를 그대로.** 🔴 앱은 *"목록 마지막 항목의 id 를 꺼내 쓴다"* 를 하지 않는다 —
+  🔴 **이제 그 둘은 다른 값이다**(마지막 항목 56 ≠ 다음 첫 항목 55). 마지막 항목 id 를 보내면 포함 경계 때문에
+  **그 항목이 다음 페이지에 한 번 더 나온다.**
+
+---
+
 ## 협의 이력
 
 ### 2026-09-01 — backend-dev 초안 + 결정 3건
@@ -758,6 +858,7 @@ A 권고의 핵심 논거가 *"뱃지가 spec 비범위라 읽음 표시를 보�
 design 판정(§4.5 뱃지 = **점 유지, 숫자로 바꾸지 않음**)과도 정합한다. 점만 그린다면 불리언으로
 충분해 보이지만 **`unreadCount` 절대값을 내린다** — 점은 그 값의 투영이고, 이 프로젝트가
 `hasNext`/`hasPrevious` 를 기각하고 절대값으로 간 것과 같은 축이다(mypage §1).
+🔴 *(2026-10-26 주석 — 이 목록의 페이지 끝에 한해 [ADR-0014](../../decisions/0014-pagination-page-end-flag-and-key-naming.md) 가 `isPageEnd` 불리언을 허용했다. `unreadCount` 를 절대값으로 내리는 위 판단은 그대로 유효하다.)*
 
 | 추가된 것 | |
 |---|---|
@@ -769,3 +870,10 @@ design 판정(§4.5 뱃지 = **점 유지, 숫자로 바꾸지 않음**)과도 �
 
 §1~§7 구현 완료 + **§8 실구동 검증 21항목 통과.** 서버 테스트 588 중 539 passed / 49 skipped
 (기존 컨테이너 블로커) / **failures 0, 회귀 0.**
+
+### 2026-10-26 — v3 개정 (breaking) → `confirmed` 유지
+
+[ADR-0014](../../decisions/0014-pagination-page-end-flag-and-key-naming.md) accepted(사용자 결정)에 따라 backend-dev 가
+개정. `cursor`/`nextCursor` → `nextNotificationId`(값 = 다음 페이지 첫 항목 id, 요청 포함 경계 `<=`), `isPageEnd` 추가(§10).
+🔴 같은 날 1차안(`last…` 이름, 값 = 이번 페이지 마지막 id, 배타 경계)으로 구현했다가 사용자 결정으로 ADR-0014 가 갱신돼 위 안으로 교체했다 — 1차안은 앱에 나간 적 없다. 서버 구현 + 단위 테스트
+**711 중 661 passed / 50 skipped(기존 컨테이너 블로커) / failures 0** + §8.2 실구동 19항목. 모바일 반영은 PM 결정 대기.
